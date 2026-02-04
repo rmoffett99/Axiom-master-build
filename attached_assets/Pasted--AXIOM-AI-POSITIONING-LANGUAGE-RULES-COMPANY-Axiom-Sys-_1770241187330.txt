@@ -1,0 +1,106 @@
+========================================
+AXIOM™ — AI POSITIONING & LANGUAGE RULES
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+AXIOM™ must NEVER be described as:
+- “not having AI”
+- “purely human judgment”
+- “manual decision tracking”
+- “no AI engine built in”
+
+This language is incorrect and harmful to positioning.
+
+----------------------------------------
+CORRECT AI POSITIONING (MANDATORY)
+----------------------------------------
+
+AXIOM™ is an AI-READY decision intelligence platform.
+
+AXIOM™ is intentionally designed so that:
+- human judgment is the source of truth
+- AI augments, analyzes, and surfaces risk
+- AI never replaces accountability or ownership
+
+AXIOM™ treats AI as:
+- an analytical layer
+- a risk detection layer
+- a memory and pattern recognition layer
+
+NOT as:
+- an autonomous decision-maker
+- a replacement for leadership
+- a black-box recommender
+
+----------------------------------------
+CANONICAL LANGUAGE (USE THIS)
+----------------------------------------
+
+When asked about AI, respond using ONE of the following patterns:
+
+Option A (short):
+“AXIOM™ is built to support AI-driven analysis while keeping human accountability at the center of every decision.”
+
+Option B (expanded):
+“AXIOM™ combines human decision ownership with AI-assisted analysis to surface risk, detect drift, and preserve institutional memory.”
+
+Option C (executive-safe):
+“AXIOM™ uses AI to analyze decisions over time, but responsibility always remains with leadership.”
+
+----------------------------------------
+WHAT AXIOM™ AI DOES (CURRENT & PHASED)
+----------------------------------------
+
+AXIOM™ AI capabilities include or will include:
+- Decision pattern analysis
+- Assumption drift detection
+- Decision Debt™ scoring
+- Cross-decision contradiction detection
+- Institutional memory retrieval
+- Board-level risk summarization
+
+AI operates ONLY on:
+- recorded decisions
+- recorded assumptions
+- recorded outcomes
+
+No speculative or autonomous actions.
+
+----------------------------------------
+STRICTLY FORBIDDEN PHRASES
+----------------------------------------
+
+DO NOT say:
+- “AXIOM™ does not have AI”
+- “AXIOM™ relies only on humans”
+- “There is no AI engine”
+- “AI is not part of the platform”
+
+These statements undermine:
+- enterprise credibility
+- future roadmap
+- buyer expectations
+
+----------------------------------------
+ONE-SENTENCE POSITION (DEFAULT)
+----------------------------------------
+
+If unsure, use this sentence verbatim:
+
+“AXIOM™ is an AI-ready decision intelligence platform that preserves human accountability while using AI to surface risk and institutional memory.”
+
+----------------------------------------
+FINAL RULE
+----------------------------------------
+
+AXIOM™ is not an AI gimmick.
+AXIOM™ is also not anti-AI.
+
+AXIOM™ is designed for the era where:
+- AI exists
+- leadership remains accountable
+- decisions must be explainable
+
+END AI POSITIONING RULES
+========================================
