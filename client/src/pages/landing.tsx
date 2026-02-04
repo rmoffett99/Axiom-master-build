@@ -78,7 +78,7 @@ export default function LandingPage() {
           </div>
 
           <p className="text-sm text-zinc-500">
-            AI-ready decision intelligence. Human accountability at the center.
+            AI-ready decision intelligence — with human accountability at the center.
           </p>
         </div>
       </section>
