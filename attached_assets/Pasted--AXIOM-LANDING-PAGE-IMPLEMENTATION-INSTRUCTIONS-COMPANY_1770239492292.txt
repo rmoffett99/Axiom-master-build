@@ -1,0 +1,150 @@
+========================================
+AXIOM™ — LANDING PAGE IMPLEMENTATION INSTRUCTIONS
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+You are implementing the AXIOM™ public landing page.
+
+This page is NOT a marketing site.
+It is an authority signal for executives, boards, and buyers of enterprise infrastructure.
+
+The goal is NOT conversion volume.
+The goal is qualification and credibility.
+
+----------------------------------------
+DESIGN PRINCIPLES (NON-NEGOTIABLE)
+----------------------------------------
+
+- Calm, serious, restrained
+- No hype language
+- No animations
+- No gimmicks
+- No AI sparkle
+- No emojis
+- No consumer SaaS patterns
+
+This page should feel:
+- permanent
+- expensive
+- board-safe
+- procurement-safe
+
+----------------------------------------
+HEADER / NAVIGATION
+----------------------------------------
+
+Left:
+- AXIOM™ logo mark + wordmark
+
+Right:
+- Sign In
+- Request Demo (secondary)
+- Dark mode toggle (optional, subtle)
+
+Do NOT add:
+- pricing
+- blog
+- social links
+- feature dropdowns
+
+----------------------------------------
+HERO SECTION (IMPLEMENT EXACT COPY)
+----------------------------------------
+
+Headline (large):
+The system of record for how decisions are made.
+
+Supporting copy (exact, stacked lines):
+Most companies track data.
+Very few track decisions.
+That’s where risk hides.
+
+Primary CTA (prominent):
+Request Executive Briefing
+
+Secondary CTA (subtle):
+Explore Platform
+
+----------------------------------------
+MICRO-AUTHORITY LINE (ADD THIS)
+----------------------------------------
+
+Below CTAs, small text only:
+
+Built for leadership, boards, and regulated environments.
+
+Do NOT bold.
+Do NOT animate.
+Do NOT turn into a bullet.
+
+----------------------------------------
+VISUAL STYLE
+----------------------------------------
+
+- Dark background
+- High contrast typography
+- Minimal gradients only if subtle
+- Large type, generous spacing
+- No stock imagery
+- No illustrations
+
+The page should feel closer to:
+- Palantir
+- ServiceNow
+- Bloomberg terminals
+
+NOT:
+- Webflow SaaS templates
+- Startup landing pages
+- AI product hype pages
+
+----------------------------------------
+SCROLL BEHAVIOR
+----------------------------------------
+
+Above the fold must stand alone.
+Scrolling is optional, not required.
+
+Do NOT overload the first screen.
+Whitespace is intentional.
+
+----------------------------------------
+WHAT NOT TO ADD (STRICT)
+----------------------------------------
+
+- Testimonials
+- Customer logos
+- Feature grids
+- Screenshots in hero
+- Pricing
+- “How it works” sections
+- Video
+- Chat widgets
+- Cookie banners unless legally required
+
+----------------------------------------
+TONE CHECK (FINAL TEST)
+----------------------------------------
+
+Before publishing, ask:
+
+1) Would a CFO feel comfortable forwarding this internally?
+2) Would a board member trust this on first glance?
+3) Does this feel like infrastructure, not software?
+
+If any answer is NO — revise.
+
+----------------------------------------
+FINAL INSTRUCTION
+----------------------------------------
+
+This page establishes authority.
+It does not sell features.
+It does not explain everything.
+
+Its job is to make the right people say:
+“Why don’t we already have this?”
+
+END LANDING PAGE INSTRUCTIONS
+========================================
