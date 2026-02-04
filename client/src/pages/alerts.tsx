@@ -180,7 +180,7 @@ export default function AlertsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
-          <p className="text-muted-foreground">Decision drift and risk notifications</p>
+          <p className="text-muted-foreground">AI-detected drift and risk notifications</p>
         </div>
         <Select value={severityFilter} onValueChange={setSeverityFilter}>
           <SelectTrigger className="w-40" data-testid="select-severity-filter">

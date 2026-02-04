@@ -1,0 +1,130 @@
+========================================
+AXIOM™ — GLOBAL AI COPY ALIGNMENT
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+You are now updating AXIOM™ application copy to reflect its
+AI-READY DECISION INTELLIGENCE POSITIONING.
+
+This update is COPY ONLY.
+Do NOT add new features.
+Do NOT add new UI elements.
+Do NOT change architecture.
+
+----------------------------------------
+GLOBAL POSITIONING (CANONICAL)
+----------------------------------------
+
+AXIOM™ is an AI-ready decision intelligence platform that preserves
+human accountability while using AI to surface risk and institutional memory.
+
+This sentence defines the platform.
+All copy must align with it.
+
+----------------------------------------
+WHERE TO APPLY THIS POSITIONING
+----------------------------------------
+
+Update copy in the following areas where applicable:
+
+1) Marketing / Landing Page (if referenced in-app)
+2) Dashboard helper text
+3) Empty states
+4) Tooltips
+5) Board Mode descriptions
+6) Any “About”, “Info”, or explanatory text
+7) Any AI-related questions or disclosures
+
+----------------------------------------
+APPROVED PHRASES (USE THESE)
+----------------------------------------
+
+- “AI-ready decision intelligence platform”
+- “AI-assisted analysis”
+- “AI-driven risk detection”
+- “Human accountability remains the source of truth”
+- “AI surfaces patterns, drift, and risk”
+- “Explainable, auditable decision intelligence”
+
+----------------------------------------
+FORBIDDEN PHRASES (REMOVE OR REPLACE)
+----------------------------------------
+
+- “No AI”
+- “Purely manual”
+- “Human-only system”
+- “No AI engine”
+- “AI not included”
+- “Traditional decision tracking”
+
+These phrases are NOT allowed anywhere in AXIOM™.
+
+----------------------------------------
+DASHBOARD COPY RULES
+----------------------------------------
+
+When referencing scores, trends, or alerts:
+
+DO NOT say:
+- “AI decided”
+- “AI recommends”
+- “AI suggests action”
+
+INSTEAD say:
+- “AI analysis indicates”
+- “AI-detected risk”
+- “AI-identified pattern”
+
+Responsibility must always remain human.
+
+----------------------------------------
+BOARD MODE COPY RULES
+----------------------------------------
+
+Board Mode language must emphasize:
+- explainability
+- defensibility
+- accountability
+
+Approved phrasing:
+“AI-assisted analysis of organizational decision risk.”
+
+----------------------------------------
+HELP / INFO TEXT TEMPLATE
+----------------------------------------
+
+If explanatory text is needed, use this template:
+
+“AXIOM™ uses AI to analyze recorded decisions, assumptions, and outcomes
+to surface risk, detect drift, and preserve institutional memory.
+All decisions remain owned and accountable to leadership.”
+
+----------------------------------------
+FINAL VALIDATION CHECK
+----------------------------------------
+
+Before completing this update, confirm:
+
+1) No copy implies autonomous decision-making
+2) No copy downplays AI readiness
+3) All AI references reinforce explainability and accountability
+
+If unsure, default to the canonical positioning sentence.
+
+----------------------------------------
+FINAL INSTRUCTION
+----------------------------------------
+
+AXIOM™ must sound:
+- modern
+- credible
+- explainable
+- board-safe
+
+Never gimmicky.
+Never defensive about AI.
+Never dismissive of AI.
+
+END GLOBAL AI COPY ALIGNMENT
+========================================

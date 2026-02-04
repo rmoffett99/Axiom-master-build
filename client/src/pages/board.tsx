@@ -191,7 +191,7 @@ export default function BoardModePage() {
         <CardHeader>
           <CardTitle className="text-lg">Decision Debt Trend</CardTitle>
           <CardDescription>
-            Organization-wide decision health over time
+            AI-assisted analysis of organizational decision risk over time
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -250,7 +250,7 @@ export default function BoardModePage() {
               Top 10 Highest Risk Decisions
             </CardTitle>
             <CardDescription>
-              Decisions with highest decision debt scores
+              AI-detected risk based on decision debt analysis
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -363,8 +363,8 @@ export default function BoardModePage() {
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
             <Shield className="w-4 h-4" />
             <p>
-              This is a read-only view designed for board oversight. 
-              Data is refreshed nightly. Last updated: {new Date().toLocaleDateString()}
+              AI-assisted analysis of organizational decision risk. All decisions remain owned and accountable to leadership.
+              Last updated: {new Date().toLocaleDateString()}
             </p>
           </div>
         </CardContent>

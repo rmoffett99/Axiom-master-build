@@ -204,7 +204,7 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-lg">Decision Debt Trend</CardTitle>
-            <CardDescription>Organization-wide debt score over time</CardDescription>
+            <CardDescription>AI-driven risk analysis over time</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-64">
@@ -253,7 +253,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <div>
               <CardTitle className="text-lg">Highest Risk</CardTitle>
-              <CardDescription>Decisions with highest debt</CardDescription>
+              <CardDescription>AI-identified patterns and risk</CardDescription>
             </div>
             <Link href="/decisions?sort=debt">
               <Button variant="ghost" size="sm" data-testid="button-view-all-risky">
