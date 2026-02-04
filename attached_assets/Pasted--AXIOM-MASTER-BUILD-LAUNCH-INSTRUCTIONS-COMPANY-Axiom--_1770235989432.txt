@@ -1,0 +1,307 @@
+========================================
+AXIOM™ — MASTER BUILD & LAUNCH INSTRUCTIONS
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+AXIOM™ is a browser-based enterprise web application.
+It is executive infrastructure — not a startup tool.
+
+This document is the SINGLE SOURCE OF TRUTH for:
+- engineering
+- product
+- design
+- messaging
+
+Deviation is not allowed without explicit instruction.
+
+========================================
+SECTION 1 — SYSTEM ROLE (ENGINEERING)
+========================================
+
+SYSTEM ROLE: AXIOM™ Core Builder
+COMPANY: Axiom Systems
+
+You are a senior enterprise software engineer building a production-grade platform called AXIOM™.
+
+AXIOM™ is NOT:
+- a prototype
+- a collaboration tool
+- a consumer SaaS
+- a productivity app
+
+AXIOM™ IS:
+- a system of record
+- append-only
+- audit-safe
+- board-visible
+- designed for failure scenarios
+
+Your priorities are:
+1. Correctness
+2. Auditability
+3. Immutability
+4. Clear ownership
+5. Long-term safety over speed
+
+If there is a tradeoff, choose the option that would satisfy:
+- a General Counsel
+- a Board Member
+- an External Auditor
+
+----------------------------------------
+NON-NEGOTIABLE PRINCIPLES
+----------------------------------------
+
+1) Decisions are APPEND-ONLY
+   - No deletes
+   - No silent edits
+   - All changes create versions
+
+2) Every decision has ONE accountable owner (human)
+
+3) Assumptions are FIRST-CLASS ENTITIES
+
+4) Leadership turnover must not break context
+
+5) AXIOM™ explains decisions — it does NOT manage workflows
+
+6) This is authority software, not engagement software
+
+If unsure → choose the safer, more explicit option.
+
+----------------------------------------
+CORE CONCEPT
+----------------------------------------
+
+AXIOM™ is the system of record for how a company thinks.
+
+It captures:
+- why decisions were made
+- what assumptions justified them
+- who owned them
+- when they must be revisited
+
+It continuously detects decision risk (“Decision Debt™”) when:
+- assumptions expire
+- owners leave
+- time passes without review
+- decisions contradict each other
+
+========================================
+SECTION 2 — TECH STACK
+========================================
+
+Frontend: Next.js / React
+Backend: Node or Python
+Database: PostgreSQL (JSONB allowed)
+Auth: Org-based auth, SSO-ready
+Jobs: Background workers for nightly scoring
+Search: Keyword first (vector later)
+
+AXIOM™ is a WEB APP ONLY.
+Do NOT build mobile or desktop apps in v1.
+
+========================================
+SECTION 3 — DATA MODEL (EXACT)
+========================================
+
+[UNCHANGED — IMPLEMENT EXACTLY]
+
+Entities:
+- User
+- Team
+- Decision
+- DecisionVersion (append-only)
+- Assumption
+- Metric
+- EvidenceLink
+- Dependency
+- Alert
+- DecisionDebtScore
+- AuditLog
+
+(Refer to prior schema — no modifications allowed.)
+
+========================================
+SECTION 4 — REQUIRED FEATURES (MVP)
+========================================
+
+[UNCHANGED — IMPLEMENT EXACTLY]
+
+- Strict decision creation
+- Versioned amendments
+- Assumption validation
+- Nightly Decision Debt scoring
+- Alert system (manual acknowledge only)
+- Board Mode (read-only)
+
+========================================
+SECTION 5 — OPTION 1: REPLIT PROJECT CHECKLIST
+========================================
+
+PHASE 0 — Setup
+- Create project: axiom-core
+- Add README with “APPEND-ONLY / NO DELETES”
+- Add env example
+- Set up Postgres
+- Seed org + admin user
+
+PHASE 1 — Database
+- Migrations for all core tables
+- Enforce foreign keys
+- Enforce NOT NULL owner on decisions
+- Prevent deletes at app layer
+- Index alerts, debt scores, decisions
+
+PHASE 2 — Auth + RBAC
+Roles:
+- admin
+- owner
+- contributor
+- viewer
+- board (read-only)
+
+Audit log on:
+- decision create
+- decision amend
+- assumption status change
+- alert acknowledge
+
+PHASE 3 — APIs
+- Create / publish decision
+- Amend decision (new version)
+- Add / validate assumptions
+- List alerts
+- Ack alerts
+- Fetch debt scores
+
+PHASE 4 — UI
+/dashboard
+- Org Decision Debt score
+- Trend line
+- Top risky decisions
+- Expiring 30/60/90
+
+/decisions
+- Table + filters
+- Create CTA
+
+/decisions/new
+- Guided flow (cannot skip)
+- Min 3 assumptions enforced
+
+/decisions/:id
+Tabs:
+- Overview
+- Assumptions
+- Evidence
+- Dependencies
+- History
+- Alerts
+
+/alerts
+- Severity filters
+- Manual acknowledge only
+
+/board
+- Read-only
+- Debt trend
+- Top 10 risks
+- Expiring decisions
+- Exportable view
+
+PHASE 5 — Jobs
+Nightly:
+- Recalculate Decision Debt
+- Generate alerts
+- Persist score history
+
+========================================
+SECTION 6 — OPTION 2: LANDING PAGE & HOMEPAGE COPY
+========================================
+
+HERO SECTION
+------------
+AXIOM™
+The system of record for how decisions are made.
+
+Most companies track data.
+Very few track decisions.
+That’s where risk hides.
+
+CTA: Request Executive Briefing
+
+----------------------------------------
+
+PROBLEM SECTION
+---------------
+Critical decisions outlive the people who made them.
+Assumptions quietly expire.
+Strategy drifts without alarms.
+
+By the time failure shows up in metrics,
+it’s already too late.
+
+----------------------------------------
+
+SOLUTION SECTION
+----------------
+AXIOM™ captures:
+- why decisions were made
+- what assumptions justified them
+- who owns them
+- when they must be reviewed
+
+And continuously checks whether reality still agrees.
+
+----------------------------------------
+
+FEATURE BLOCKS
+--------------
+Decision Ledger
+Append-only, owner-assigned decision records.
+
+Decision Debt™
+A quantified measure of unresolved decision risk.
+
+Drift Detection
+Early warnings when assumptions break.
+
+Board Mode
+A strategic continuity view built for leadership.
+
+----------------------------------------
+
+POSITIONING CLOSE
+-----------------
+One bad decision costs more than this platform.
+
+CTA: Schedule a Demo
+
+========================================
+SECTION 7 — QUALITY BAR
+========================================
+
+Before marking ANY feature complete:
+
+1) Is the audit trail complete?
+2) Can leadership explain this decision in 3 years?
+3) Would a board be comfortable reviewing this?
+
+If any answer is NO → fix it.
+
+========================================
+FINAL INSTRUCTION
+========================================
+
+Build AXIOM™ as if it will be used during:
+- executive turnover
+- acquisitions
+- lawsuits
+- board investigations
+
+Because it will.
+
+END OF MASTER INSTRUCTIONS
+========================================
