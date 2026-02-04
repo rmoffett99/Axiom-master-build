@@ -1,0 +1,217 @@
+========================================
+AXIOM™ — DASHBOARD REFINEMENT INSTRUCTIONS
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+You are refining the AXIOM™ dashboard.
+
+This dashboard is NOT a productivity overview.
+It is an executive risk surface.
+
+The goal is:
+- clarity
+- seriousness
+- decision accountability
+- board-readiness
+
+----------------------------------------
+GLOBAL DASHBOARD PRINCIPLES
+----------------------------------------
+
+- Calm, dense, authoritative
+- No gamification
+- No vanity metrics
+- No “activity for activity’s sake”
+- Every number must imply action or risk
+
+If a widget does not answer:
+“What should leadership worry about?”
+→ remove or downgrade it.
+
+----------------------------------------
+PAGE TITLE & SUBTITLE
+----------------------------------------
+
+Title:
+Dashboard
+
+Subtitle (keep exactly):
+Organization Decision Health Overview
+
+This is correct. Do not change.
+
+----------------------------------------
+PRIMARY CTA
+----------------------------------------
+
+Button:
+Create Decision →
+
+This is correct.
+
+Rules:
+- Keep as primary action
+- Do not add secondary “quick actions”
+- Decisions must feel intentional, not casual
+
+----------------------------------------
+SUMMARY CARDS (TOP SECTION)
+----------------------------------------
+
+KEEP THESE CARDS — they are correct:
+
+1) Total Decisions
+   Label:
+   Active decisions tracked
+
+2) Avg. Decision Debt
+   Label:
+   Organization-wide score
+
+   Rules:
+   - Trend indicator allowed (up/down %)
+   - No color beyond muted red/yellow/neutral
+   - This is NOT a “performance” score
+
+3) Critical Alerts
+   Label:
+   Require immediate attention
+
+4) Expiring Soon
+   Label:
+   Within next 30 days
+
+Rules for ALL cards:
+- No celebratory colors
+- No green “good job” states
+- Neutral first, red only for risk
+
+----------------------------------------
+DECISION DEBT TREND (CHART)
+----------------------------------------
+
+Title:
+Decision Debt Trend
+
+Subtitle:
+Organization-wide debt score over time
+
+This chart is REQUIRED.
+
+Rules:
+- Single line only
+- No smoothing animations
+- No exaggerated peaks
+- Tooltip must show:
+  - date
+  - score
+
+This chart should feel analytical, not emotional.
+
+----------------------------------------
+HIGHEST RISK SECTION
+----------------------------------------
+
+Title:
+Highest Risk
+
+Subtitle:
+Decisions with highest debt
+
+This section is CRITICAL.
+
+Rules:
+- Always sorted by highest Decision Debt first
+- Show:
+  - Decision title
+  - Owner (human name)
+  - Debt score badge
+
+Debt badge rules:
+- Red only for truly high risk
+- Grey for moderate
+- No green
+
+Clicking a decision MUST deep-link to the decision record.
+
+----------------------------------------
+EXPIRATION SECTIONS
+----------------------------------------
+
+Titles (keep exactly):
+- Expiring in 30 Days
+  Subtitle:
+  Require immediate review
+
+- Expiring in 60 Days
+  Subtitle:
+  Plan ahead
+
+Rules:
+- Show assumption count clearly
+- “Assumptions pending” is correct language
+- Red badge ONLY for 30-day expiration
+- 60-day should feel cautionary, not urgent
+
+----------------------------------------
+LANGUAGE RULES (VERY IMPORTANT)
+----------------------------------------
+
+DO NOT use:
+- “Tasks”
+- “To-do”
+- “Progress”
+- “Completed”
+- “Success”
+- “Healthy”
+
+USE instead:
+- Review
+- Risk
+- Pending
+- Expiring
+- Requires attention
+
+This is not task management.
+This is governance.
+
+----------------------------------------
+WHAT TO REMOVE OR AVOID
+----------------------------------------
+
+- No “recent activity” feed
+- No engagement metrics
+- No congratulatory states
+- No empty-state jokes
+- No onboarding tips on dashboard
+
+Onboarding happens elsewhere.
+
+----------------------------------------
+FINAL TEST (NON-NEGOTIABLE)
+----------------------------------------
+
+Before marking dashboard complete, ask:
+
+1) Would a board member understand risk in under 10 seconds?
+2) Would a CFO feel safe sending a screenshot of this?
+3) Does this feel like evidence, not UI?
+
+If any answer is NO — revise.
+
+----------------------------------------
+FINAL INSTRUCTION
+----------------------------------------
+
+The AXIOM™ dashboard exists to surface:
+- decision risk
+- ownership
+- time decay
+
+Not productivity.
+Not activity.
+Not velocity.
+
+END DASHBOARD INSTRUCTIONS
+========================================

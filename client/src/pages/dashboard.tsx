@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import {
   TrendingDown,
-  TrendingUp,
   AlertTriangle,
   Clock,
   FileText,
@@ -29,19 +28,17 @@ function StatCard({
   value, 
   description, 
   icon: Icon, 
-  trend,
   variant = "default" 
 }: { 
   title: string; 
   value: string | number; 
   description: string;
   icon: React.ComponentType<{ className?: string }>;
-  trend?: "up" | "down";
   variant?: "default" | "warning" | "danger";
 }) {
   const variantStyles = {
-    default: "bg-primary/10 text-primary",
-    warning: "bg-chart-2/10 text-chart-2",
+    default: "bg-muted text-muted-foreground",
+    warning: "bg-muted text-muted-foreground",
     danger: "bg-destructive/10 text-destructive",
   };
 
@@ -54,15 +51,7 @@ function StatCard({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-bold">{value}</span>
-          {trend && (
-            <span className={`flex items-center text-xs ${trend === "up" ? "text-destructive" : "text-chart-5"}`}>
-              {trend === "up" ? <TrendingUp className="w-3 h-3 mr-0.5" /> : <TrendingDown className="w-3 h-3 mr-0.5" />}
-              {trend === "up" ? "+12%" : "-8%"}
-            </span>
-          )}
-        </div>
+        <span className="text-3xl font-bold">{value}</span>
         <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
@@ -70,7 +59,7 @@ function StatCard({
 }
 
 function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
-  const getSeverityColor = (score: number) => {
+  const getDebtVariant = (score: number): "destructive" | "secondary" | "outline" => {
     if (score >= 70) return "destructive";
     if (score >= 40) return "secondary";
     return "outline";
@@ -85,7 +74,7 @@ function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
             Owner: {decision.owner?.displayName || "Unknown"}
           </p>
         </div>
-        <Badge variant={getSeverityColor(decision.debtScore || 0)}>
+        <Badge variant={getDebtVariant(decision.debtScore || 0)}>
           {decision.debtScore || 0}
         </Badge>
         <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -94,17 +83,12 @@ function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
   );
 }
 
-function ExpiringDecisionRow({ decision }: { decision: DecisionWithDetails }) {
+function ExpiringDecisionRow({ decision, urgent = false }: { decision: DecisionWithDetails; urgent?: boolean }) {
   const daysUntilReview = decision.reviewByDate 
     ? Math.ceil((new Date(decision.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
 
-  const getUrgencyVariant = (days: number | null) => {
-    if (days === null) return "outline";
-    if (days <= 30) return "destructive";
-    if (days <= 60) return "secondary";
-    return "outline";
-  };
+  const pendingAssumptions = decision.assumptions?.filter(a => a.status === "pending_review").length || 0;
 
   return (
     <Link href={`/decisions/${decision.id}`}>
@@ -112,11 +96,11 @@ function ExpiringDecisionRow({ decision }: { decision: DecisionWithDetails }) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{decision.title}</p>
           <p className="text-xs text-muted-foreground">
-            {decision.assumptions?.filter(a => a.status === "pending_review").length || 0} assumptions pending
+            {pendingAssumptions} assumptions pending
           </p>
         </div>
         {daysUntilReview !== null && (
-          <Badge variant={getUrgencyVariant(daysUntilReview)}>
+          <Badge variant={urgent ? "destructive" : "secondary"}>
             {daysUntilReview}d
           </Badge>
         )}
@@ -154,6 +138,19 @@ export default function DashboardPage() {
   const chartData = stats?.debtTrend || [];
   const topRisky = stats?.topRiskyDecisions || [];
 
+  // Filter decisions by expiration timeframe
+  const getExpiringDecisions = (minDays: number, maxDays: number) => {
+    return topRisky.filter(d => {
+      const days = d.reviewByDate 
+        ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) 
+        : null;
+      return days !== null && days > minDays && days <= maxDays;
+    });
+  };
+
+  const expiring30 = getExpiringDecisions(-Infinity, 30);
+  const expiring60 = getExpiringDecisions(30, 60);
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -183,7 +180,6 @@ export default function DashboardPage() {
           value={stats?.avgDebtScore || 0}
           description="Organization-wide score"
           icon={TrendingDown}
-          trend="down"
           variant="warning"
         />
         <StatCard
@@ -191,14 +187,14 @@ export default function DashboardPage() {
           value={stats?.criticalAlerts || 0}
           description="Require immediate attention"
           icon={AlertTriangle}
-          variant="danger"
+          variant={stats?.criticalAlerts ? "danger" : "default"}
         />
         <StatCard
           title="Expiring Soon"
           value={stats?.expiringSoon || 0}
           description="Within next 30 days"
           icon={Clock}
-          variant="warning"
+          variant={stats?.expiringSoon ? "warning" : "default"}
         />
       </div>
 
@@ -227,19 +223,23 @@ export default function DashboardPage() {
                     tickLine={false}
                     axisLine={false}
                     className="fill-muted-foreground"
+                    domain={[0, 100]}
                   />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: "hsl(var(--card))",
                       border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px"
+                      borderRadius: "6px",
+                      fontSize: "12px"
                     }}
+                    formatter={(value: number) => [`Score: ${value}`, '']}
+                    labelFormatter={(label) => `Date: ${label}`}
                   />
                   <Line 
-                    type="monotone" 
+                    type="linear" 
                     dataKey="score" 
-                    stroke="hsl(var(--primary))"
-                    strokeWidth={2}
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth={1.5}
                     dot={false}
                   />
                 </LineChart>
@@ -248,7 +248,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Top Risky Decisions */}
+        {/* Highest Risk Decisions */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <div>
@@ -267,80 +267,49 @@ export default function DashboardPage() {
                 No decisions tracked yet
               </p>
             ) : (
-              topRisky.slice(0, 5).map(decision => (
-                <DecisionRow key={decision.id} decision={decision} />
-              ))
+              topRisky
+                .slice()
+                .sort((a, b) => (b.debtScore || 0) - (a.debtScore || 0))
+                .slice(0, 5)
+                .map(decision => (
+                  <DecisionRow key={decision.id} decision={decision} />
+                ))
             )}
           </CardContent>
         </Card>
       </div>
 
       {/* Expiring Decisions */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">Expiring in 30 Days</CardTitle>
-              <CardDescription>Require immediate review</CardDescription>
-            </div>
+          <CardHeader>
+            <CardTitle className="text-lg">Expiring in 30 Days</CardTitle>
+            <CardDescription>Require immediate review</CardDescription>
           </CardHeader>
           <CardContent className="space-y-1">
-            {topRisky.filter(d => {
-              const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-              return days !== null && days <= 30;
-            }).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">None expiring soon</p>
+            {expiring30.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                None requiring immediate review
+              </p>
             ) : (
-              topRisky.filter(d => {
-                const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-                return days !== null && days <= 30;
-              }).map(decision => (
-                <ExpiringDecisionRow key={decision.id} decision={decision} />
+              expiring30.map(decision => (
+                <ExpiringDecisionRow key={decision.id} decision={decision} urgent />
               ))
             )}
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">Expiring in 60 Days</CardTitle>
-              <CardDescription>Plan ahead</CardDescription>
-            </div>
+          <CardHeader>
+            <CardTitle className="text-lg">Expiring in 60 Days</CardTitle>
+            <CardDescription>Plan ahead</CardDescription>
           </CardHeader>
           <CardContent className="space-y-1">
-            {topRisky.filter(d => {
-              const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-              return days !== null && days > 30 && days <= 60;
-            }).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">None in this range</p>
+            {expiring60.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                None in this range
+              </p>
             ) : (
-              topRisky.filter(d => {
-                const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-                return days !== null && days > 30 && days <= 60;
-              }).map(decision => (
-                <ExpiringDecisionRow key={decision.id} decision={decision} />
-              ))
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-lg">Expiring in 90 Days</CardTitle>
-              <CardDescription>Upcoming reviews</CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {topRisky.filter(d => {
-              const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-              return days !== null && days > 60 && days <= 90;
-            }).length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">None in this range</p>
-            ) : (
-              topRisky.filter(d => {
-                const days = d.reviewByDate ? Math.ceil((new Date(d.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : null;
-                return days !== null && days > 60 && days <= 90;
-              }).map(decision => (
+              expiring60.map(decision => (
                 <ExpiringDecisionRow key={decision.id} decision={decision} />
               ))
             )}
