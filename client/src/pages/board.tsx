@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -271,12 +272,12 @@ export default function BoardModePage() {
                   </TableRow>
                 ) : (
                   topRisks.map((decision, index) => (
-                    <TableRow key={decision.id}>
+                    <TableRow key={decision.id} className="cursor-pointer hover-elevate">
                       <TableCell>
-                        <div className="flex items-center gap-2">
+                        <Link href={`/decisions/${decision.id}`} className="flex items-center gap-2" data-testid={`link-decision-${decision.id}`}>
                           <span className="text-xs text-muted-foreground w-5">{index + 1}.</span>
                           <span className="font-medium truncate max-w-48">{decision.title}</span>
-                        </div>
+                        </Link>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -328,12 +329,14 @@ export default function BoardModePage() {
                       : null;
                     
                     return (
-                      <TableRow key={decision.id}>
+                      <TableRow key={decision.id} className="cursor-pointer hover-elevate">
                         <TableCell>
-                          <span className="font-medium truncate block max-w-64">{decision.title}</span>
-                          <span className="text-xs text-muted-foreground">
-                            Owner: {decision.owner?.displayName || "Unknown"}
-                          </span>
+                          <Link href={`/decisions/${decision.id}`} className="block" data-testid={`link-review-decision-${decision.id}`}>
+                            <span className="font-medium truncate block max-w-64">{decision.title}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Owner: {decision.owner?.displayName || "Unknown"}
+                            </span>
+                          </Link>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex flex-col items-end gap-1">

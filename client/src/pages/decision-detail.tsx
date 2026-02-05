@@ -65,19 +65,32 @@ function AssumptionCard({ assumption, onValidate }: { assumption: Assumption; on
     pending_review: "Pending Review",
   };
 
+  // Visual distinction for expired/invalidated assumptions
+  const cardClass = assumption.status === "expired" 
+    ? "overflow-hidden border-chart-2/50 bg-chart-2/5" 
+    : assumption.status === "invalidated"
+    ? "overflow-hidden border-destructive/50 bg-destructive/5"
+    : "overflow-hidden";
+
   return (
-    <Card className="overflow-hidden">
+    <Card className={cardClass}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <AssumptionStatusIcon status={assumption.status} />
           <div className="flex-1 min-w-0">
             <p className="text-sm">{assumption.description}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+            <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
               <span>{statusLabels[assumption.status]}</span>
               {assumption.validUntil && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Valid until {new Date(assumption.validUntil).toLocaleDateString()}
+                </span>
+              )}
+              {assumption.validatedAt && (
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" />
+                  Last checked {new Date(assumption.validatedAt).toLocaleDateString()}
                 </span>
               )}
             </div>

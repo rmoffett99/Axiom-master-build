@@ -1,0 +1,274 @@
+========================================
+AXIOM™ — PRE-DEMO SHIP-TIGHT EXECUTION DIRECTIVE
+COMPANY: Axiom Systems
+PRODUCT: AXIOM™
+========================================
+
+You are now operating in FINAL EXECUTION MODE.
+
+Your sole responsibility is to ensure that EVERY EXISTING FEATURE
+in AXIOM™ works exactly as intended, with no broken flows,
+no misleading behavior, and no demo risk.
+
+You are NOT designing.
+You are NOT ideating.
+You are NOT adding features.
+
+You are validating, fixing, and hardening.
+
+========================================
+GLOBAL EXECUTION RULES
+========================================
+
+1) Do NOT add new features.
+2) Do NOT change approved copy.
+3) Do NOT redesign UI.
+4) Do NOT simplify logic for convenience.
+5) Do NOT hide problems to make things “look better”.
+
+If something is unclear, broken, misleading, or fake:
+→ FIX IT.
+If something is ugly but correct:
+→ LEAVE IT.
+
+AXIOM™ must prefer truth over polish.
+
+========================================
+SECTION 1 — CORE FLOW VALIDATION (MANDATORY)
+========================================
+
+You must manually verify and fix ALL of the following flows:
+
+- Dashboard → Highest Risk Decision → Decision Detail → Back
+- Dashboard → Alert → Linked Decision → Context → Back
+- Dashboard → Expiring Decision → Assumptions → Back
+- Decision List → Decision Detail → History → Back
+- Board Mode → High Risk → Decision Detail (read-only) → Back
+
+RULES:
+- No dead ends
+- No blank screens
+- No broken navigation
+- No “coming soon”
+- No console errors
+
+Every click must resolve cleanly or clearly explain why it cannot.
+
+========================================
+SECTION 2 — DASHBOARD INTEGRITY CHECK
+========================================
+
+You must verify that ALL dashboard metrics are:
+
+- Derived from real underlying data
+- Explainable in one sentence
+- Consistent with the decisions shown
+
+Required checks:
+
+- Avg Decision Debt™ must equal the actual average of visible decisions
+- Highest Risk decisions must truly have the highest debt
+- Expiring decisions must be within the stated time window
+- Critical Alerts must map to real conditions
+
+FORBIDDEN:
+- Randomized numbers
+- Placeholder values
+- “Looks about right” logic
+
+If a number cannot be defended verbally, it is wrong.
+
+========================================
+SECTION 3 — DECISION DETAIL PAGE (CRITICAL)
+========================================
+
+For EVERY decision shown in demo data, confirm:
+
+- Decision statement is clear and singular
+- Decision owner is a named human (required)
+- Status is accurate (Active / Expired / Superseded)
+- Review date is visible
+- Expiration date is visible
+- Decision Debt™ score is visible
+- Assumptions list is explicit and readable
+- Timeline shows append-only history
+
+RULES:
+- Published decisions are read-only
+- Any change creates a new version
+- Old versions remain visible
+- Nothing important can be deleted
+
+A Decision Detail page must be defensible if printed or audited.
+
+========================================
+SECTION 4 — ASSUMPTION BEHAVIOR VALIDATION
+========================================
+
+You must confirm that assumptions:
+
+- Are required (minimum enforced)
+- Have clear validation states:
+  - Unvalidated
+  - Validated
+  - Invalidated
+- Show last-checked dates
+- Affect Decision Debt™ correctly
+
+Invalidated assumptions MUST:
+- Visually stand out
+- Increase Decision Debt™
+- Trigger alerts
+
+No assumption changes may occur silently.
+
+========================================
+SECTION 5 — DECISION DEBT™ LOGIC CHECK
+========================================
+
+Decision Debt™ must change ONLY due to:
+
+- Assumption age
+- Assumption invalidation
+- Missing ownership
+- Review neglect
+- Contradictions
+- Scope expansion
+
+You must manually simulate:
+
+- An expired assumption
+- A long-unreviewed decision
+- A missing owner
+- A contradictory decision pair
+
+AXIOM™ must:
+- Surface the issue
+- Increase Decision Debt™
+- Generate alerts
+- Never ignore governance failures
+
+NO smoothing.
+NO hiding.
+NO cosmetic fixes.
+
+========================================
+SECTION 6 — ALERT SYSTEM VERIFICATION
+========================================
+
+You must verify that:
+
+- Alerts are created for real conditions only
+- Alerts link to the correct decision
+- Alerts require manual acknowledgement
+- Closed alerts remain visible
+- Alerts cannot be deleted
+
+Alert severity must match risk level.
+
+Alerts are governance signals, not notifications.
+
+========================================
+SECTION 7 — BOARD MODE HARD LOCK
+========================================
+
+You must confirm Board Mode is:
+
+- Strictly read-only
+- No edit buttons
+- No hover affordances that imply action
+- No configuration
+- No comments
+- No mutations of any kind
+
+Board Mode must feel like:
+“A window into risk, not a control panel.”
+
+========================================
+SECTION 8 — AI LANGUAGE & BEHAVIOR AUDIT
+========================================
+
+Scan ALL copy for AI references.
+
+ALLOWED verbs:
+- surfaces
+- flags
+- detects
+- highlights
+- summarizes
+
+FORBIDDEN verbs:
+- decides
+- recommends
+- suggests
+- optimizes
+- automates decisions
+
+If AI wording is ambiguous:
+→ Remove or downgrade it.
+
+AXIOM™ is AI-READY, not AI-AUTHORITATIVE.
+
+========================================
+SECTION 9 — DEMO DATA SANITY PASS
+========================================
+
+Replace ALL toy or placeholder data.
+
+Demo data must include:
+- Realistic executive decisions
+- Realistic titles (CFO, CTO, VP Strategy)
+- Staggered creation dates (months apart)
+- Mix of:
+  - healthy decisions
+  - drifting decisions
+  - high-risk decisions
+
+Executives must believe this data could be real.
+
+========================================
+SECTION 10 — DEMO FLOW DRY RUN
+========================================
+
+You must validate the canonical 5-minute demo path:
+
+1) Dashboard → Organization risk overview
+2) Highest Risk Decision → Why it is risky
+3) Assumptions → What drifted
+4) Timeline → How the decision evolved
+5) Board Mode → Leadership view
+
+This flow must complete without:
+- confusion
+- errors
+- awkward pauses
+- unexplained metrics
+
+========================================
+EXPLICIT NON-GOALS
+========================================
+
+You must NOT:
+- Add features
+- Change copy
+- Redesign UI
+- Add onboarding
+- Add pricing
+- Add signups
+- Optimize engagement
+- Add explanations not requested
+
+This is HARDENING, not iteration.
+
+========================================
+FINAL EXECUTION RULE
+========================================
+
+If a change makes AXIOM™ feel:
+- more impressive but less trustworthy → DO NOT DO IT
+- cleaner but less honest → DO NOT DO IT
+
+AXIOM™ must be calm, correct, and defensible.
+
+END PRE-DEMO EXECUTION DIRECTIVE
+========================================

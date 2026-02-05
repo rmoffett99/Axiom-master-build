@@ -414,15 +414,51 @@ export class DatabaseStorage implements IStorage {
       return reviewDate <= thirtyDaysFromNow && reviewDate > new Date();
     }).length;
 
-    // Generate mock debt trend (last 30 days)
+    // Generate deterministic debt trend based on actual decision data
+    // Use historical debt scores from database if available, otherwise derive from current state
+    const historicalScores = await db
+      .select()
+      .from(decisionDebtScores)
+      .orderBy(desc(decisionDebtScores.calculatedAt));
+    
     const debtTrend: { date: string; score: number }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      debtTrend.push({
-        date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        score: Math.max(0, avgDebtScore + Math.floor(Math.random() * 20) - 10),
-      });
+    
+    if (historicalScores.length > 0) {
+      // Group scores by date and calculate daily averages
+      const scoresByDate = new Map<string, number[]>();
+      for (const score of historicalScores) {
+        const dateKey = new Date(score.calculatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        if (!scoresByDate.has(dateKey)) {
+          scoresByDate.set(dateKey, []);
+        }
+        scoresByDate.get(dateKey)!.push(score.score);
+      }
+      
+      // Build trend from last 30 days
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const scores = scoresByDate.get(dateKey);
+        
+        if (scores && scores.length > 0) {
+          const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+          debtTrend.push({ date: dateKey, score: avg });
+        } else {
+          // Use current average for days without historical data
+          debtTrend.push({ date: dateKey, score: avgDebtScore });
+        }
+      }
+    } else {
+      // No historical data - show flat line at current average (honest representation)
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        debtTrend.push({
+          date: date.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          score: avgDebtScore,
+        });
+      }
     }
 
     // Get top risky decisions
