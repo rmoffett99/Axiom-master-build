@@ -92,7 +92,7 @@ export default function LandingPage() {
               <span className="text-xs text-zinc-600">™</span>
             </div>
             <p className="text-sm text-zinc-600">
-              © 2024 Axiom Systems
+              © 2026 Axiom Systems
             </p>
           </div>
         </div>
