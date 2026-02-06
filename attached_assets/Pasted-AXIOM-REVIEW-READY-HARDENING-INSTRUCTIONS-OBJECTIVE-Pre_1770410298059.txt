@@ -1,0 +1,129 @@
+AXIOM — REVIEW-READY HARDENING INSTRUCTIONS
+
+OBJECTIVE
+Prepare Axiom for review by a practicing financial professional. The product must feel stable, conservative, and audit-minded. If a feature is incomplete, it must be hidden, not partially shown.
+
+FEATURE FREEZE
+Do not add new features.
+
+Only the following core workflow may remain visible and functional:
+- Data ingestion (real or mock)
+- Transaction logging
+- Categorization
+- Exception / review handling
+- Report or export output
+
+Any feature outside this flow must be disabled, hidden from navigation, and removed from the UI.
+No “coming soon,” no placeholders, no experimental tools.
+
+DATA INTEGRITY RULES
+All displayed data must obey basic accounting logic.
+- Totals must equal the sum of line items
+- Subtotals must reconcile
+- Dates and timestamps must be realistic
+- No rounded or fake-looking values
+- No dummy labels such as “Test User” or “Example LLC”
+
+Mock data must resemble a real small-business dataset.
+
+LANGUAGE AND COPY CLEANUP
+Remove all hype language.
+
+Do not use:
+AI magic
+Smart engine
+Auto-fix
+Instantly solves
+Next-gen
+
+Use instead:
+Automated reconciliation
+Rule-based classification
+Exception detection
+Audit trail
+Review log
+System-generated
+
+Tone must be conservative, precise, and professional.
+
+NAVIGATION SIMPLIFICATION
+Final navigation order only:
+Overview
+Transactions
+Exceptions
+Reports
+Settings
+
+Remove duplicate pages, experimental tabs, and unclear or redundant sections.
+Each page must answer one clear question.
+
+DASHBOARD (REVIEWER VIEW)
+The dashboard must communicate calm control.
+
+Display only:
+- Total transactions logged
+- Items requiring review
+- Last sync timestamp
+- Audit status: Ready or Needs review
+
+No unnecessary charts. White space is intentional.
+
+EXCEPTIONS AND REVIEW FLOW
+Each exception must include:
+- Reason
+- Timestamp
+- Status (open / reviewed / resolved)
+
+Review actions must be logged.
+If logging is incomplete, hide the feature.
+
+REPORTING OR EXPORT
+At least one output must work end-to-end:
+- CSV export
+- PDF summary
+- Printable on-screen report
+
+Reports must include:
+- Date range
+- Totals
+- Exception count
+- Review status
+
+Branding must be minimal and professional.
+
+UI AND STABILITY PASS
+Before review:
+- No broken buttons
+- No dead links
+- No console errors
+- No hanging loaders
+- Clear empty states such as “No exceptions found”
+
+Failures must be quiet and descriptive.
+
+SECURITY AND COMPLIANCE LANGUAGE
+Do not claim certifications unless verified.
+
+Allowed language:
+Designed to support audit workflows
+Maintains a review trail
+
+Not allowed:
+SOC-2 compliant (unless certified)
+Bank-grade security (unless verified)
+
+REVIEW MODE CONFIGURATION
+Create one clean test account for review with:
+- A realistic business name
+- Preloaded data
+- No easy way to break the system
+
+The reviewer must be able to navigate, review exceptions, and export a report without confusion.
+
+FINAL REQUIREMENTS
+- No hype language
+- No unfinished features visible
+- One clear use case demonstrated
+- Data appears real
+- UI feels calm and intentional
+- Product feels trustworthy and professional
