@@ -19,17 +19,17 @@ export default function LandingPage() {
                 <Button 
                   variant="ghost" 
                   size="sm" 
-                  className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
+                  className="text-zinc-400"
                   data-testid="button-login"
                 >
-                  Sign In
+                  Enter
                 </Button>
               </Link>
               <Link href="/dashboard">
                 <Button 
                   variant="outline" 
                   size="sm" 
-                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                  className="border-zinc-700 text-zinc-300"
                   data-testid="button-demo"
                 >
                   View Demo
@@ -63,7 +63,7 @@ export default function LandingPage() {
             <Link href="/dashboard">
               <Button 
                 size="lg" 
-                className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 text-base font-medium px-8"
+                className="bg-zinc-100 text-zinc-900 border-zinc-100 text-base font-medium px-8"
                 data-testid="button-briefing"
               >
                 Enter Platform
@@ -73,7 +73,7 @@ export default function LandingPage() {
               <Button 
                 size="lg" 
                 variant="ghost" 
-                className="text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50 text-base w-full sm:w-auto"
+                className="text-zinc-400 text-base w-full sm:w-auto"
                 data-testid="button-explore"
               >
                 Explore Platform

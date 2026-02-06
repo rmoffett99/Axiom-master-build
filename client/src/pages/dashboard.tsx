@@ -255,7 +255,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg">Highest Risk</CardTitle>
               <CardDescription>Ranked by decision debt score</CardDescription>
             </div>
-            <Link href="/decisions?sort=debt">
+            <Link href="/decisions">
               <Button variant="ghost" size="sm" data-testid="button-view-all-risky">
                 View All
               </Button>
