@@ -25,14 +25,16 @@ export default function LandingPage() {
                   Sign In
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
-                data-testid="button-demo"
-              >
-                Request Demo
-              </Button>
+              <Link href="/dashboard">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100"
+                  data-testid="button-demo"
+                >
+                  View Demo
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -58,13 +60,15 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <Button 
-              size="lg" 
-              className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 text-base font-medium px-8"
-              data-testid="button-briefing"
-            >
-              Request Executive Briefing
-            </Button>
+            <Link href="/dashboard">
+              <Button 
+                size="lg" 
+                className="bg-zinc-100 text-zinc-900 hover:bg-zinc-200 text-base font-medium px-8"
+                data-testid="button-briefing"
+              >
+                Enter Platform
+              </Button>
+            </Link>
             <Link href="/dashboard">
               <Button 
                 size="lg" 

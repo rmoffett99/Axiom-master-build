@@ -261,21 +261,14 @@ export async function registerRoutes(
   return httpServer;
 }
 
-// Helper function to calculate debt score
 function calculateDebtScore(assumptionCount: number, alertCount: number): number {
-  // Base score starts at 20
   let score = 20;
   
-  // Add points for fewer assumptions (higher risk)
   if (assumptionCount < 5) {
     score += (5 - assumptionCount) * 5;
   }
   
-  // Add points for alerts
   score += alertCount * 10;
-  
-  // Add some randomness to simulate real scoring
-  score += Math.floor(Math.random() * 20);
   
   return Math.min(100, Math.max(0, score));
 }

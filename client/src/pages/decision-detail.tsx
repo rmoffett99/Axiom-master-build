@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
   ArrowLeft,
-  Edit,
   FileText,
   User,
   Calendar,
@@ -310,14 +309,6 @@ export default function DecisionDetailPage() {
                 </span>
               )}
             </div>
-          </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <Link href={`/decisions/${decision.id}/amend`}>
-              <Button variant="outline" data-testid="button-amend-decision">
-                <Edit className="w-4 h-4 mr-2" />
-                Amend
-              </Button>
-            </Link>
           </div>
         </div>
 
