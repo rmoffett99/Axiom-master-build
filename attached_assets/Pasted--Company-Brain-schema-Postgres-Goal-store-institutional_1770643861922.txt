@@ -1,0 +1,369 @@
+-- Company Brain schema (Postgres)
+-- Goal: store institutional memory + principles + live context + reasoning + actions + audit trail
+-- Works with any app stack. Add pgvector if you want embeddings in Postgres.
+
+-- ===== Extensions (optional but recommended) =====
+-- If you want embeddings in Postgres:
+-- CREATE EXTENSION IF NOT EXISTS vector;
+
+-- ===== Enums =====
+DO $$ BEGIN
+  CREATE TYPE brain_source_type AS ENUM ('integration','user','system','import','email','slack','webhook');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE brain_memory_kind AS ENUM ('fact','policy','procedure','case','metric','note','decision','risk','customer','vendor');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE brain_decision_status AS ENUM ('draft','recommended','approved','rejected','executed','rolled_back','superseded');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE brain_action_status AS ENUM ('queued','running','succeeded','failed','canceled','needs_approval');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TYPE brain_risk_level AS ENUM ('info','low','medium','high','critical');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- ===== Tenancy / Org =====
+CREATE TABLE IF NOT EXISTS org (
+  org_id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name              text NOT NULL,
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS org_user (
+  user_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  email             text NOT NULL,
+  display_name      text,
+  role              text NOT NULL DEFAULT 'member', -- owner/admin/member/viewer
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, email)
+);
+
+-- ===== Integrations / Sources =====
+CREATE TABLE IF NOT EXISTS data_source (
+  source_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  type              brain_source_type NOT NULL,
+  name              text NOT NULL,       -- "Stripe", "QuickBooks", "Bank", "Manual"
+  external_ref      text,                -- connector id
+  is_active         boolean NOT NULL DEFAULT true,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, type, name)
+);
+
+-- Every raw event coming in (webhook, import row, API pull, manual entry)
+CREATE TABLE IF NOT EXISTS source_event (
+  event_id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  source_id         uuid REFERENCES data_source(source_id) ON DELETE SET NULL,
+  occurred_at       timestamptz NOT NULL DEFAULT now(),
+  received_at       timestamptz NOT NULL DEFAULT now(),
+  entity_type       text NOT NULL,      -- "invoice", "payment", "vendor", "ticket"
+  entity_id         text,               -- external id
+  event_type        text NOT NULL,      -- "created","updated","paid","chargeback"
+  payload           jsonb NOT NULL,
+  hash              text,               -- for idempotency
+  UNIQUE(org_id, hash)
+);
+
+CREATE INDEX IF NOT EXISTS idx_source_event_org_time ON source_event(org_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_source_event_entity ON source_event(org_id, entity_type, entity_id);
+
+-- ===== Canonical Entities (optional but very useful) =====
+-- Keep these lean: just the fields the brain needs often.
+CREATE TABLE IF NOT EXISTS vendor (
+  vendor_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  name              text NOT NULL,
+  status            text NOT NULL DEFAULT 'active',
+  tags              text[] NOT NULL DEFAULT '{}',
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS customer (
+  customer_id       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  name              text NOT NULL,
+  status            text NOT NULL DEFAULT 'active',
+  tags              text[] NOT NULL DEFAULT '{}',
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, name)
+);
+
+-- ===== Memory Layer (Facts + Notes + Cases + Policies as "memories") =====
+-- This is the central knowledge store. Everything can map into "memory".
+CREATE TABLE IF NOT EXISTS memory_item (
+  memory_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  kind              brain_memory_kind NOT NULL,
+  title             text NOT NULL,
+  summary           text,
+  body              text,                 -- human-readable canonical text
+  data              jsonb NOT NULL DEFAULT '{}'::jsonb, -- structured payload
+  source_id         uuid REFERENCES data_source(source_id) ON DELETE SET NULL,
+  source_event_id   uuid REFERENCES source_event(event_id) ON DELETE SET NULL,
+  created_by        uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  is_active         boolean NOT NULL DEFAULT true
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_org_kind_time ON memory_item(org_id, kind, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_memory_gin_data ON memory_item USING gin (data);
+
+-- Optional embeddings in Postgres (pgvector)
+-- ALTER TABLE memory_item ADD COLUMN embedding vector(1536);
+
+-- Tagging for retrieval/filtering
+CREATE TABLE IF NOT EXISTS memory_tag (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  memory_id         uuid NOT NULL REFERENCES memory_item(memory_id) ON DELETE CASCADE,
+  tag               text NOT NULL,
+  PRIMARY KEY (org_id, memory_id, tag)
+);
+
+-- Link memories to each other (case → invoices, policy → procedure, etc.)
+CREATE TABLE IF NOT EXISTS memory_link (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  from_memory_id    uuid NOT NULL REFERENCES memory_item(memory_id) ON DELETE CASCADE,
+  to_memory_id      uuid NOT NULL REFERENCES memory_item(memory_id) ON DELETE CASCADE,
+  relationship      text NOT NULL, -- "supports","contradicts","example_of","supersedes","depends_on"
+  weight            numeric NOT NULL DEFAULT 1.0,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (org_id, from_memory_id, to_memory_id, relationship)
+);
+
+-- ===== Principles / Policy Layer (How we think) =====
+-- Store principles as first-class objects so decisions cite them.
+CREATE TABLE IF NOT EXISTS principle (
+  principle_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  name              text NOT NULL,    -- "Cash preservation > growth unless runway > 12mo"
+  statement         text NOT NULL,    -- canonical phrasing
+  priority          int NOT NULL DEFAULT 50, -- 0-100 higher wins in conflicts
+  domain            text NOT NULL DEFAULT 'general', -- "finance","security","sales","ops"
+  is_active         boolean NOT NULL DEFAULT true,
+  created_by        uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, name)
+);
+
+-- Rules are executable/parameterized thresholds (guardrails)
+CREATE TABLE IF NOT EXISTS rule (
+  rule_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  name              text NOT NULL,
+  description       text,
+  domain            text NOT NULL DEFAULT 'general',
+  severity          brain_risk_level NOT NULL DEFAULT 'medium',
+  is_active         boolean NOT NULL DEFAULT true,
+  -- A simple expression format your app can interpret; keep it transparent.
+  -- Example: "expense.amount > 5000 AND expense.category = 'Software'"
+  condition_expr    text NOT NULL,
+  -- What to do when rule triggers: "flag", "block", "require_approval", "auto_approve"
+  outcome           text NOT NULL DEFAULT 'flag',
+  params            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_by        uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(org_id, name)
+);
+
+-- Link rules/principles to memories (policy docs, SOPs, examples)
+CREATE TABLE IF NOT EXISTS principle_memory (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  principle_id      uuid NOT NULL REFERENCES principle(principle_id) ON DELETE CASCADE,
+  memory_id         uuid NOT NULL REFERENCES memory_item(memory_id) ON DELETE CASCADE,
+  PRIMARY KEY (org_id, principle_id, memory_id)
+);
+
+CREATE TABLE IF NOT EXISTS rule_memory (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  rule_id           uuid NOT NULL REFERENCES rule(rule_id) ON DELETE CASCADE,
+  memory_id         uuid NOT NULL REFERENCES memory_item(memory_id) ON DELETE CASCADE,
+  PRIMARY KEY (org_id, rule_id, memory_id)
+);
+
+-- ===== Context Layer (What’s happening now) =====
+-- Snapshots of business state used for decisions (cash, runway, open invoices, etc.)
+CREATE TABLE IF NOT EXISTS context_snapshot (
+  snapshot_id       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  captured_at       timestamptz NOT NULL DEFAULT now(),
+  scope             text NOT NULL DEFAULT 'org',  -- 'org' or 'customer:uuid' etc
+  metrics           jsonb NOT NULL,               -- key/value metrics
+  notes             text
+);
+
+CREATE INDEX IF NOT EXISTS idx_context_org_time ON context_snapshot(org_id, captured_at DESC);
+CREATE INDEX IF NOT EXISTS idx_context_gin_metrics ON context_snapshot USING gin (metrics);
+
+-- Live signals/events your brain monitors (anomalies, spikes, drift)
+CREATE TABLE IF NOT EXISTS signal (
+  signal_id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  detected_at       timestamptz NOT NULL DEFAULT now(),
+  name              text NOT NULL,     -- "Unusual vendor spend", "Chargeback spike"
+  severity          brain_risk_level NOT NULL DEFAULT 'low',
+  entity_type       text,             -- "vendor","customer","invoice"
+  entity_key        text,             -- uuid or external id
+  details           jsonb NOT NULL DEFAULT '{}'::jsonb,
+  status            text NOT NULL DEFAULT 'open', -- open/ack/resolved
+  resolved_at       timestamptz
+);
+
+CREATE INDEX IF NOT EXISTS idx_signal_org_time ON signal(org_id, detected_at DESC);
+
+-- ===== Reasoning + Decision Layer =====
+-- Every decision request (explicit or triggered).
+CREATE TABLE IF NOT EXISTS decision (
+  decision_id       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now(),
+  status            brain_decision_status NOT NULL DEFAULT 'draft',
+  domain            text NOT NULL,                 -- "finance","ops","sales","security"
+  decision_type     text NOT NULL,                 -- "approve_expense","flag_invoice","prioritize_customer"
+  prompt            text,                          -- original question/request
+  subject_type      text,                          -- "invoice","expense","vendor","customer","initiative"
+  subject_key       text,                          -- id/uuid/external id
+  input_facts       jsonb NOT NULL DEFAULT '{}'::jsonb, -- structured inputs
+  context_snapshot_id uuid REFERENCES context_snapshot(snapshot_id) ON DELETE SET NULL,
+  requested_by      uuid REFERENCES org_user(user_id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_org_time ON decision(org_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_decision_subject ON decision(org_id, subject_type, subject_key);
+
+-- Model outputs / reasoning trace (store multiple passes: draft, refined, final)
+CREATE TABLE IF NOT EXISTS decision_reasoning (
+  reasoning_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  decision_id       uuid NOT NULL REFERENCES decision(decision_id) ON DELETE CASCADE,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  model_name        text,                 -- "gpt-5.x", etc
+  step              text NOT NULL DEFAULT 'final', -- draft/refine/final
+  reasoning_summary text NOT NULL,         -- human-readable explanation
+  recommendation    jsonb NOT NULL,        -- structured recommendation payload
+  confidence        numeric,               -- 0-1
+  risks             jsonb NOT NULL DEFAULT '[]'::jsonb, -- list of risks
+  alternatives      jsonb NOT NULL DEFAULT '[]'::jsonb  -- list of alternatives
+);
+
+CREATE INDEX IF NOT EXISTS idx_reasoning_decision_time ON decision_reasoning(decision_id, created_at DESC);
+
+-- Evidence used: memory items, events, signals, principles, rules.
+CREATE TABLE IF NOT EXISTS decision_evidence (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  decision_id       uuid NOT NULL REFERENCES decision(decision_id) ON DELETE CASCADE,
+  evidence_type     text NOT NULL,  -- "memory","event","signal","principle","rule"
+  evidence_id       uuid,           -- points to corresponding table (nullable if external)
+  evidence_key      text,           -- optional string pointer
+  excerpt           text,           -- the quoted part / why it matters
+  weight            numeric NOT NULL DEFAULT 1.0,
+  PRIMARY KEY (org_id, decision_id, evidence_type, evidence_id, evidence_key)
+);
+
+-- Which principles/rules were applied (and whether any conflicts occurred)
+CREATE TABLE IF NOT EXISTS decision_principle (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  decision_id       uuid NOT NULL REFERENCES decision(decision_id) ON DELETE CASCADE,
+  principle_id      uuid NOT NULL REFERENCES principle(principle_id) ON DELETE CASCADE,
+  applied           boolean NOT NULL DEFAULT true,
+  note              text,
+  PRIMARY KEY (org_id, decision_id, principle_id)
+);
+
+CREATE TABLE IF NOT EXISTS decision_rule_hit (
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  decision_id       uuid NOT NULL REFERENCES decision(decision_id) ON DELETE CASCADE,
+  rule_id           uuid NOT NULL REFERENCES rule(rule_id) ON DELETE CASCADE,
+  hit               boolean NOT NULL,
+  hit_details       jsonb NOT NULL DEFAULT '{}'::jsonb,
+  PRIMARY KEY (org_id, decision_id, rule_id)
+);
+
+-- ===== Action Layer (what the brain does) =====
+CREATE TABLE IF NOT EXISTS action_plan (
+  plan_id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  decision_id       uuid NOT NULL REFERENCES decision(decision_id) ON DELETE CASCADE,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  name              text NOT NULL,      -- "Approve expense", "Send vendor email", "Create Jira ticket"
+  requires_approval boolean NOT NULL DEFAULT true,
+  approval_role     text,              -- "admin","finance_manager"
+  steps             jsonb NOT NULL      -- ordered list of steps w/ params
+);
+
+CREATE TABLE IF NOT EXISTS action_run (
+  run_id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  plan_id           uuid NOT NULL REFERENCES action_plan(plan_id) ON DELETE CASCADE,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  started_at        timestamptz,
+  finished_at       timestamptz,
+  status            brain_action_status NOT NULL DEFAULT 'queued',
+  initiated_by      uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  approval_by       uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  output            jsonb NOT NULL DEFAULT '{}'::jsonb,
+  error             text
+);
+
+-- ===== Governance / Audit =====
+-- Immutable-ish log of everything important.
+CREATE TABLE IF NOT EXISTS audit_log (
+  audit_id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id            uuid NOT NULL REFERENCES org(org_id) ON DELETE CASCADE,
+  at                timestamptz NOT NULL DEFAULT now(),
+  actor_user_id     uuid REFERENCES org_user(user_id) ON DELETE SET NULL,
+  actor_type        text NOT NULL DEFAULT 'user', -- user/system/integration
+  action            text NOT NULL,                -- "create_rule","approve_decision","execute_action"
+  entity_type       text NOT NULL,                -- "rule","decision","memory_item"
+  entity_id         uuid,
+  before            jsonb,
+  after             jsonb,
+  meta              jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_org_time ON audit_log(org_id, at DESC);
+
+-- ===== Helpful housekeeping triggers =====
+-- updated_at maintenance
+CREATE OR REPLACE FUNCTION set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_memory_updated_at
+  BEFORE UPDATE ON memory_item
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_principle_updated_at
+  BEFORE UPDATE ON principle
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_rule_updated_at
+  BEFORE UPDATE ON rule
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  CREATE TRIGGER trg_decision_updated_at
+  BEFORE UPDATE ON decision
+  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
