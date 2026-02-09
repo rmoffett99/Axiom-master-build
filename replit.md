@@ -122,11 +122,14 @@ npm run db:push  # Push schema changes
 - Status: Planning document only — not implemented, no current app changes
 
 ## Recent Changes
-- 2026-02-09: Company Brain v1 foundation (non-disruptive)
-  - Added 3 passive brain tables: brain_decision_log, brain_reasoning_summary, brain_audit_trail
-  - Created brain-recorder.ts module (fire-and-forget, non-blocking writes)
-  - Instrumented existing routes to passively record: decision creation, amendments, assumption changes, alert creation/acknowledgment
-  - No UI changes, no schema changes to existing tables, no enforcement or auto-execution
+- 2026-02-09: Company Brain v1 schema replaced with refined design
+  - Replaced brain_decision_log/brain_reasoning_summary/brain_audit_trail with decision_log/decision_reasoning/decision_audit
+  - New tables use uuid PKs, proper FK relationships (reasoning + audit reference decision_log)
+  - decision_log: decision_type, source_module, subject_type, subject_id, metadata (jsonb)
+  - decision_reasoning: FK to decision_log, summary_text, confidence_score
+  - decision_audit: FK to decision_log, event_type, actor, snapshot (jsonb)
+  - brain-recorder.ts rewritten: inserts decision_log first, then uses returned PK for child records
+  - Still fire-and-forget, non-blocking, no UI changes, no existing table changes
   - Intent: institutional memory and observability layer
 - 2026-02-09: Stored Company Brain schema as future planning reference
 - 2026-02-09: Continued hardening pass

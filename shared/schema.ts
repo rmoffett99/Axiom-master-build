@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, pgEnum, uuid, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -131,49 +131,40 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// ===== Company Brain Foundation (v1 — read-only observability) =====
-// These tables passively record institutional memory. No UI, no enforcement, no auto-execution.
+// ===== Company Brain v1 (passive logging, 3 tables) =====
+// Backend-only, fire-and-forget. No UI, no enforcement, no auto-execution.
 
-export const brainDecisionLog = pgTable("brain_decision_log", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  axiomDecisionId: varchar("axiom_decision_id", { length: 36 }),
+export const decisionLog = pgTable("decision_log", {
+  decisionId: uuid("decision_id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: uuid("org_id"),
+  decisionType: text("decision_type").notNull(),
+  sourceModule: text("source_module").notNull(),
+  subjectType: text("subject_type").notNull(),
+  subjectId: text("subject_id").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  metadata: jsonb("metadata").notNull().default({}),
+});
+
+export const decisionReasoning = pgTable("decision_reasoning", {
+  reasoningId: uuid("reasoning_id").primaryKey().default(sql`gen_random_uuid()`),
+  decisionId: uuid("decision_id").notNull().references(() => decisionLog.decisionId, { onDelete: "cascade" }),
+  summaryText: text("summary_text").notNull(),
+  confidenceScore: doublePrecision("confidence_score"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const decisionAudit = pgTable("decision_audit", {
+  auditId: uuid("audit_id").primaryKey().default(sql`gen_random_uuid()`),
+  decisionId: uuid("decision_id").notNull().references(() => decisionLog.decisionId, { onDelete: "cascade" }),
   eventType: text("event_type").notNull(),
-  actorId: varchar("actor_id", { length: 36 }),
-  actorName: text("actor_name"),
-  title: text("title"),
-  summary: text("summary"),
-  snapshot: jsonb("snapshot"),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
+  actor: text("actor").notNull().default("system"),
+  snapshot: jsonb("snapshot").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const brainReasoningSummary = pgTable("brain_reasoning_summary", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  axiomDecisionId: varchar("axiom_decision_id", { length: 36 }),
-  axiomEntityType: text("axiom_entity_type").notNull(),
-  axiomEntityId: varchar("axiom_entity_id", { length: 36 }),
-  action: text("action").notNull(),
-  reasoning: text("reasoning"),
-  inputData: jsonb("input_data"),
-  outcomeData: jsonb("outcome_data"),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
-});
-
-export const brainAuditTrail = pgTable("brain_audit_trail", {
-  id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
-  actorId: varchar("actor_id", { length: 36 }),
-  actorName: text("actor_name"),
-  action: text("action").notNull(),
-  entityType: text("entity_type").notNull(),
-  entityId: varchar("entity_id", { length: 36 }),
-  before: jsonb("before"),
-  after: jsonb("after"),
-  meta: jsonb("meta"),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
-});
-
-export type BrainDecisionLog = typeof brainDecisionLog.$inferSelect;
-export type BrainReasoningSummary = typeof brainReasoningSummary.$inferSelect;
-export type BrainAuditTrail = typeof brainAuditTrail.$inferSelect;
+export type DecisionLog = typeof decisionLog.$inferSelect;
+export type DecisionReasoning = typeof decisionReasoning.$inferSelect;
+export type DecisionAudit = typeof decisionAudit.$inferSelect;
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });

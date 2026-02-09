@@ -1,8 +1,8 @@
 import { db } from "./db";
 import {
-  brainDecisionLog,
-  brainReasoningSummary,
-  brainAuditTrail,
+  decisionLog,
+  decisionReasoning,
+  decisionAudit,
 } from "@shared/schema";
 
 function safeRecord(fn: () => Promise<void>) {
@@ -22,45 +22,37 @@ export const brainRecorder = {
     assumptions: { description: string }[];
   }) {
     safeRecord(async () => {
-      await db.insert(brainDecisionLog).values({
-        axiomDecisionId: params.decisionId,
-        eventType: "decision_created",
-        actorId: params.actorId,
-        actorName: params.actorName,
-        title: params.title,
-        summary: `Decision created: "${params.title}" with ${params.assumptions.length} assumptions`,
+      const [row] = await db.insert(decisionLog).values({
+        decisionType: "create_decision",
+        sourceModule: "decisions",
+        subjectType: "decision",
+        subjectId: params.decisionId,
+        metadata: {
+          axiomDecisionId: params.decisionId,
+          actorId: params.actorId,
+          actorName: params.actorName,
+          title: params.title,
+          assumptionCount: params.assumptions.length,
+          assumptions: params.assumptions.map((a) => a.description),
+        },
+      }).returning({ decisionId: decisionLog.decisionId });
+
+      await db.insert(decisionReasoning).values({
+        decisionId: row.decisionId,
+        summaryText: `Decision created: "${params.title}" with ${params.assumptions.length} assumptions. Rationale: ${params.rationale.substring(0, 500)}`,
+        confidenceScore: null,
+      });
+
+      await db.insert(decisionAudit).values({
+        decisionId: row.decisionId,
+        eventType: "created",
+        actor: params.actorId,
         snapshot: {
+          title: params.title,
           context: params.context,
           rationale: params.rationale,
           assumptionCount: params.assumptions.length,
-          assumptions: params.assumptions.map((a) => a.description),
         },
-      });
-
-      await db.insert(brainReasoningSummary).values({
-        axiomDecisionId: params.decisionId,
-        axiomEntityType: "decision",
-        axiomEntityId: params.decisionId,
-        action: "create",
-        reasoning: params.rationale,
-        inputData: {
-          context: params.context,
-          assumptions: params.assumptions.map((a) => a.description),
-        },
-        outcomeData: { title: params.title, status: "published" },
-      });
-
-      await db.insert(brainAuditTrail).values({
-        actorId: params.actorId,
-        actorName: params.actorName,
-        action: "decision_created",
-        entityType: "decision",
-        entityId: params.decisionId,
-        after: {
-          title: params.title,
-          assumptionCount: params.assumptions.length,
-        },
-        meta: { source: "axiom_app" },
       });
     });
   },
@@ -75,41 +67,35 @@ export const brainRecorder = {
     context: string;
   }) {
     safeRecord(async () => {
-      await db.insert(brainDecisionLog).values({
-        axiomDecisionId: params.decisionId,
-        eventType: "decision_amended",
-        actorId: params.authorId,
-        actorName: params.authorName,
-        title: params.title,
-        summary: `Decision amended to version ${params.versionNumber}`,
+      const [row] = await db.insert(decisionLog).values({
+        decisionType: "amend_decision",
+        sourceModule: "decisions",
+        subjectType: "decision",
+        subjectId: params.decisionId,
+        metadata: {
+          axiomDecisionId: params.decisionId,
+          authorId: params.authorId,
+          authorName: params.authorName,
+          title: params.title,
+          versionNumber: params.versionNumber,
+        },
+      }).returning({ decisionId: decisionLog.decisionId });
+
+      await db.insert(decisionReasoning).values({
+        decisionId: row.decisionId,
+        summaryText: `Decision amended to version ${params.versionNumber}: "${params.title}". Rationale: ${params.rationale.substring(0, 500)}`,
+        confidenceScore: null,
+      });
+
+      await db.insert(decisionAudit).values({
+        decisionId: row.decisionId,
+        eventType: "evaluated",
+        actor: params.authorId,
         snapshot: {
           versionNumber: params.versionNumber,
           rationale: params.rationale,
           context: params.context,
         },
-      });
-
-      await db.insert(brainReasoningSummary).values({
-        axiomDecisionId: params.decisionId,
-        axiomEntityType: "decision_version",
-        axiomEntityId: params.decisionId,
-        action: "amend",
-        reasoning: params.rationale,
-        inputData: { context: params.context },
-        outcomeData: {
-          versionNumber: params.versionNumber,
-          title: params.title,
-        },
-      });
-
-      await db.insert(brainAuditTrail).values({
-        actorId: params.authorId,
-        actorName: params.authorName,
-        action: "decision_amended",
-        entityType: "decision",
-        entityId: params.decisionId,
-        after: { versionNumber: params.versionNumber },
-        meta: { source: "axiom_app" },
       });
     });
   },
@@ -118,35 +104,35 @@ export const brainRecorder = {
     assumptionId: string;
     decisionId: string;
     validatorId: string;
-    validatorName?: string;
     description: string;
     previousStatus: string;
     newStatus: string;
   }) {
     safeRecord(async () => {
-      await db.insert(brainDecisionLog).values({
-        axiomDecisionId: params.decisionId,
-        eventType: "assumption_status_changed",
-        actorId: params.validatorId,
-        actorName: params.validatorName,
-        title: `Assumption ${params.newStatus}`,
-        summary: `Assumption "${params.description.substring(0, 100)}" changed from ${params.previousStatus} to ${params.newStatus}`,
-        snapshot: {
+      const [row] = await db.insert(decisionLog).values({
+        decisionType: "assumption_change",
+        sourceModule: "assumptions",
+        subjectType: "assumption",
+        subjectId: params.assumptionId,
+        metadata: {
+          axiomDecisionId: params.decisionId,
           assumptionId: params.assumptionId,
+          validatorId: params.validatorId,
           previousStatus: params.previousStatus,
           newStatus: params.newStatus,
+          description: params.description.substring(0, 500),
         },
-      });
+      }).returning({ decisionId: decisionLog.decisionId });
 
-      await db.insert(brainAuditTrail).values({
-        actorId: params.validatorId,
-        actorName: params.validatorName,
-        action: "assumption_status_changed",
-        entityType: "assumption",
-        entityId: params.assumptionId,
-        before: { status: params.previousStatus },
-        after: { status: params.newStatus },
-        meta: { decisionId: params.decisionId, source: "axiom_app" },
+      await db.insert(decisionAudit).values({
+        decisionId: row.decisionId,
+        eventType: "logged",
+        actor: params.validatorId,
+        snapshot: {
+          previousStatus: params.previousStatus,
+          newStatus: params.newStatus,
+          description: params.description,
+        },
       });
     });
   },
@@ -155,35 +141,35 @@ export const brainRecorder = {
     alertId: string;
     decisionId: string;
     userId: string;
-    userName?: string;
     alertMessage: string;
     alertType: string;
     alertSeverity: string;
   }) {
     safeRecord(async () => {
-      await db.insert(brainDecisionLog).values({
-        axiomDecisionId: params.decisionId,
-        eventType: "alert_acknowledged",
-        actorId: params.userId,
-        actorName: params.userName,
-        title: `Alert acknowledged: ${params.alertType}`,
-        summary: `${params.alertSeverity} alert acknowledged: "${params.alertMessage.substring(0, 100)}"`,
-        snapshot: {
+      const [row] = await db.insert(decisionLog).values({
+        decisionType: "acknowledge_alert",
+        sourceModule: "alerts",
+        subjectType: "alert",
+        subjectId: params.alertId,
+        metadata: {
+          axiomDecisionId: params.decisionId,
           alertId: params.alertId,
+          userId: params.userId,
           alertType: params.alertType,
           severity: params.alertSeverity,
+          message: params.alertMessage.substring(0, 500),
         },
-      });
+      }).returning({ decisionId: decisionLog.decisionId });
 
-      await db.insert(brainAuditTrail).values({
-        actorId: params.userId,
-        actorName: params.userName,
-        action: "alert_acknowledged",
-        entityType: "alert",
-        entityId: params.alertId,
-        before: { acknowledgedAt: null },
-        after: { acknowledgedAt: new Date().toISOString() },
-        meta: { decisionId: params.decisionId, source: "axiom_app" },
+      await db.insert(decisionAudit).values({
+        decisionId: row.decisionId,
+        eventType: "logged",
+        actor: params.userId,
+        snapshot: {
+          alertType: params.alertType,
+          severity: params.alertSeverity,
+          message: params.alertMessage,
+        },
       });
     });
   },
@@ -196,29 +182,29 @@ export const brainRecorder = {
     message: string;
   }) {
     safeRecord(async () => {
-      await db.insert(brainDecisionLog).values({
-        axiomDecisionId: params.decisionId,
-        eventType: "alert_created",
-        title: `Alert generated: ${params.alertType}`,
-        summary: `${params.severity} alert: "${params.message.substring(0, 100)}"`,
-        snapshot: {
+      const [row] = await db.insert(decisionLog).values({
+        decisionType: "create_alert",
+        sourceModule: "alerts",
+        subjectType: "alert",
+        subjectId: params.alertId,
+        metadata: {
+          axiomDecisionId: params.decisionId,
           alertId: params.alertId,
           alertType: params.alertType,
           severity: params.severity,
+          message: params.message.substring(0, 500),
         },
-      });
+      }).returning({ decisionId: decisionLog.decisionId });
 
-      await db.insert(brainAuditTrail).values({
-        action: "alert_created",
-        entityType: "alert",
-        entityId: params.alertId,
-        after: {
-          decisionId: params.decisionId,
-          type: params.alertType,
+      await db.insert(decisionAudit).values({
+        decisionId: row.decisionId,
+        eventType: "created",
+        actor: "system",
+        snapshot: {
+          alertType: params.alertType,
           severity: params.severity,
           message: params.message,
         },
-        meta: { source: "axiom_system" },
       });
     });
   },

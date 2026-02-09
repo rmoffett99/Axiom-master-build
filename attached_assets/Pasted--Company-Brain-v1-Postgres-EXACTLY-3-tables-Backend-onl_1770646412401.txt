@@ -1,0 +1,57 @@
+-- Company Brain v1 (Postgres) — EXACTLY 3 tables
+-- Backend-only, passive logging. No changes to existing tables required.
+
+-- If you don't already have UUID generation:
+-- CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1) decision_log
+CREATE TABLE IF NOT EXISTS decision_log (
+  decision_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id           uuid,                         -- optional (recommended if multi-tenant)
+  decision_type    text NOT NULL,                -- e.g., "flag_invoice", "risk_score", "approve_suggestion"
+  source_module    text NOT NULL,                -- e.g., "payments", "invoices", "audits"
+  subject_type     text NOT NULL,                -- e.g., "invoice", "payment", "vendor"
+  subject_id       text NOT NULL,                -- external id or internal id as string
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  metadata         jsonb NOT NULL DEFAULT '{}'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_log_created_at
+  ON decision_log (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decision_log_subject
+  ON decision_log (subject_type, subject_id);
+
+CREATE INDEX IF NOT EXISTS idx_decision_log_gin_metadata
+  ON decision_log USING gin (metadata);
+
+-- 2) decision_reasoning
+CREATE TABLE IF NOT EXISTS decision_reasoning (
+  reasoning_id      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  decision_id       uuid NOT NULL REFERENCES decision_log(decision_id) ON DELETE CASCADE,
+  summary_text      text NOT NULL,               -- concise human-readable explanation
+  confidence_score  double precision,            -- optional 0..1
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_reasoning_decision_id_time
+  ON decision_reasoning (decision_id, created_at DESC);
+
+-- 3) decision_audit (immutable-ish trail)
+CREATE TABLE IF NOT EXISTS decision_audit (
+  audit_id     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  decision_id  uuid NOT NULL REFERENCES decision_log(decision_id) ON DELETE CASCADE,
+  event_type   text NOT NULL,                    -- "created" | "evaluated" | "logged"
+  actor        text NOT NULL DEFAULT 'system',    -- system only for v1
+  snapshot     jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_decision_audit_decision_id_time
+  ON decision_audit (decision_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decision_audit_event_type
+  ON decision_audit (event_type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_decision_audit_gin_snapshot
+  ON decision_audit USING gin (snapshot);
