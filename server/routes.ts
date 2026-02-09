@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
+import { brainRecorder } from "./brain-recorder";
 
 // Validation schemas for API requests
 const createDecisionSchema = z.object({
@@ -141,6 +142,16 @@ export async function registerRoutes(
       // Calculate initial debt score
       await storage.updateDecisionDebtScore(decision.id, calculateDebtScore(validAssumptions.length, 0));
 
+      // Passive brain recording (fire-and-forget)
+      brainRecorder.logDecisionCreated({
+        decisionId: decision.id,
+        actorId: ownerId,
+        title,
+        context,
+        rationale,
+        assumptions: validAssumptions,
+      });
+
       res.json(decision);
     } catch (error) {
       console.error("Error creating decision:", error);
@@ -175,6 +186,16 @@ export async function registerRoutes(
         alternatives: alternatives || null,
         risks: risks || null,
         authorId,
+      });
+
+      // Passive brain recording (fire-and-forget)
+      brainRecorder.logDecisionAmended({
+        decisionId: req.params.id,
+        authorId,
+        title: title || decision.title,
+        versionNumber: version.versionNumber,
+        rationale,
+        context,
       });
 
       res.json(version);
@@ -212,14 +233,36 @@ export async function registerRoutes(
       if (status === "invalidated") {
         const existingAssumption = await storage.getAssumption(req.params.id);
         if (existingAssumption) {
-          await storage.createAlert({
+          const newAlert = await storage.createAlert({
             decisionId: existingAssumption.decisionId,
             type: "assumption_expired",
             severity: "high",
             message: `Assumption invalidated: ${existingAssumption.description.substring(0, 100)}`,
             metadata: { assumptionId: existingAssumption.id },
           });
+
+          // Passive brain recording for alert (fire-and-forget)
+          brainRecorder.logAlertCreated({
+            alertId: newAlert.id,
+            decisionId: existingAssumption.decisionId,
+            alertType: "assumption_expired",
+            severity: "high",
+            message: newAlert.message,
+          });
         }
+      }
+
+      // Passive brain recording for assumption change (fire-and-forget)
+      const updatedAssumption = await storage.getAssumption(req.params.id);
+      if (updatedAssumption) {
+        brainRecorder.logAssumptionStatusChanged({
+          assumptionId: req.params.id,
+          decisionId: updatedAssumption.decisionId,
+          validatorId,
+          description: updatedAssumption.description,
+          previousStatus: "unknown",
+          newStatus: status,
+        });
       }
 
       res.json(assumption);
@@ -251,6 +294,17 @@ export async function registerRoutes(
       }
 
       const alert = await storage.acknowledgeAlert(req.params.id, userId);
+
+      // Passive brain recording (fire-and-forget)
+      brainRecorder.logAlertAcknowledged({
+        alertId: req.params.id,
+        decisionId: alert.decisionId,
+        userId,
+        alertMessage: alert.message,
+        alertType: alert.type,
+        alertSeverity: alert.severity,
+      });
+
       res.json(alert);
     } catch (error) {
       console.error("Error acknowledging alert:", error);
