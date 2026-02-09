@@ -106,7 +106,33 @@ npm run dev
 npm run db:push  # Push schema changes
 ```
 
+## Hardening Rules (EXECUTION MODE)
+- Application is frozen for demos — only bug fixes allowed, no new features or copy changes
+- All scores must be deterministic (no Math.random or volatile calculations)
+- Conservative language for financial reviewers — "System-generated" not "AI-detected"
+- Landing page retains marketing positioning ("AI-ready decision intelligence"); in-app copy is conservative
+- Footer copyright: © 2026 Axiom Systems
+- If something is not fully reliable, hide it rather than approximate it
+- Priority: reviewer trust over feature completeness
+
+## Future: Company Brain Schema
+- Reference schema stored at: `attached_assets/Pasted--Company-Brain-schema-Postgres-Goal-store-institutional_1770643861922.txt`
+- Covers: institutional memory, principles/policy layer, context snapshots, reasoning traces, action plans, and full audit trail
+- Significantly expands current AXIOM data model (org tenancy, memory items, signals, decision evidence, rules engine)
+- Status: Planning document only — not implemented, no current app changes
+
 ## Recent Changes
+- 2026-02-09: Stored Company Brain schema as future planning reference
+- 2026-02-09: Continued hardening pass
+  - Fixed dashboard "View All" link (removed unsupported ?sort=debt query)
+  - Renamed "Sign In" to "Enter" (no auth system exists)
+  - Removed manual hover overrides from landing page buttons
+  - Updated 404 page to professional copy with return navigation
+- 2026-02-06: Review-ready hardening
+  - Replaced promotional AI language with conservative terms in-app
+  - Removed randomness from debt score calculation (deterministic)
+  - Removed non-functional Amend button
+  - Made landing page CTAs functional
 - 2026-02-04: Initial implementation of AXIOM™ MVP
   - Complete data model with all core entities
   - Landing page with marketing copy
