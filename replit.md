@@ -131,6 +131,12 @@ npm run db:push  # Push schema changes
   - brain-recorder.ts rewritten: inserts decision_log first, then uses returned PK for child records
   - Still fire-and-forget, non-blocking, no UI changes, no existing table changes
   - Intent: institutional memory and observability layer
+- 2026-02-09: Consolidated brain recorder into unified logDecision function
+  - Replaced brain-recorder.ts (multi-method) with logDecision.ts (single function)
+  - logDecision(input) inserts decision_log, optionally decision_reasoning, then decision_audit
+  - Fails silently (returns null on error), never blocks app responses
+  - Schema simplified: removed Drizzle FK references from decision_reasoning/decision_audit (kept uuid columns)
+  - Routes updated to call logDecision() directly at each choke point
 - 2026-02-09: Stored Company Brain schema as future planning reference
 - 2026-02-09: Continued hardening pass
   - Fixed dashboard "View All" link (removed unsupported ?sort=debt query)

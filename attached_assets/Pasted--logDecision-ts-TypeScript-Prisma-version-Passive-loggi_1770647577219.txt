@@ -1,0 +1,89 @@
+// logDecision.ts (TypeScript) — Prisma version
+// ✅ Passive logging only (never throws, never blocks app)
+// ✅ Works with the 3-table Company Brain v1 schema we created
+
+import type { PrismaClient } from "@prisma/client";
+
+type LogDecisionInput = {
+  orgId?: string | null;
+
+  decisionType: string;   // "flag_invoice" | "risk_score" | "approve_suggestion" ...
+  sourceModule: string;   // "invoices" | "payments" | "audits" ...
+  subjectType: string;    // "invoice" | "payment" | "vendor" ...
+  subjectId: string;      // external or internal id as string
+
+  metadata?: Record<string, unknown>;       // stored in decision_log.metadata
+  summaryText?: string | null;              // stored in decision_reasoning.summary_text
+  confidenceScore?: number | null;          // 0..1 optional
+
+  eventType?: "created" | "evaluated" | "logged"; // stored in decision_audit.event_type
+  auditSnapshot?: Record<string, unknown>;        // stored in decision_audit.snapshot
+};
+
+/**
+ * logDecision(prisma, payload)
+ * - Inserts decision_log
+ * - Optionally inserts decision_reasoning
+ * - Inserts decision_audit
+ * - FAILS SILENTLY (returns null on failure)
+ */
+export async function logDecision(
+  prisma: PrismaClient,
+  input: LogDecisionInput
+): Promise<string | null> {
+  try {
+    const {
+      orgId = null,
+      decisionType,
+      sourceModule,
+      subjectType,
+      subjectId,
+      metadata = {},
+      summaryText = null,
+      confidenceScore = null,
+      eventType = "logged",
+      auditSnapshot = {},
+    } = input;
+
+    // 1) decision_log
+    const decision = await prisma.decision_log.create({
+      data: {
+        org_id: orgId,
+        decision_type: decisionType,
+        source_module: sourceModule,
+        subject_type: subjectType,
+        subject_id: subjectId,
+        metadata,
+      },
+      select: { decision_id: true },
+    });
+
+    const decisionId = decision.decision_id;
+
+    // 2) decision_reasoning (optional)
+    if (summaryText && summaryText.trim().length > 0) {
+      await prisma.decision_reasoning.create({
+        data: {
+          decision_id: decisionId,
+          summary_text: summaryText,
+          confidence_score: confidenceScore,
+        },
+      });
+    }
+
+    // 3) decision_audit
+    await prisma.decision_audit.create({
+      data: {
+        decision_id: decisionId,
+        event_type: eventType,
+        actor: "system",
+        snapshot: auditSnapshot,
+      },
+    });
+
+    return decisionId;
+  } catch {
+    // ✅ MUST fail silently
+    return null;
+  }
+}

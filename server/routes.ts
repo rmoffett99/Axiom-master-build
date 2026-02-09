@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { brainRecorder } from "./brain-recorder";
+import { logDecision } from "./logDecision";
 
 // Validation schemas for API requests
 const createDecisionSchema = z.object({
@@ -142,14 +142,16 @@ export async function registerRoutes(
       // Calculate initial debt score
       await storage.updateDecisionDebtScore(decision.id, calculateDebtScore(validAssumptions.length, 0));
 
-      // Passive brain recording (fire-and-forget)
-      brainRecorder.logDecisionCreated({
-        decisionId: decision.id,
-        actorId: ownerId,
-        title,
-        context,
-        rationale,
-        assumptions: validAssumptions,
+      logDecision({
+        decisionType: "create_decision",
+        sourceModule: "decisions",
+        subjectType: "decision",
+        subjectId: decision.id,
+        metadata: { title, assumptionCount: validAssumptions.length },
+        summaryText: `Decision created: "${title}" with ${validAssumptions.length} assumptions. ${rationale.substring(0, 300)}`,
+        eventType: "created",
+        actor: ownerId,
+        auditSnapshot: { title, context, rationale, assumptionCount: validAssumptions.length },
       });
 
       res.json(decision);
@@ -188,14 +190,16 @@ export async function registerRoutes(
         authorId,
       });
 
-      // Passive brain recording (fire-and-forget)
-      brainRecorder.logDecisionAmended({
-        decisionId: req.params.id,
-        authorId,
-        title: title || decision.title,
-        versionNumber: version.versionNumber,
-        rationale,
-        context,
+      logDecision({
+        decisionType: "amend_decision",
+        sourceModule: "decisions",
+        subjectType: "decision",
+        subjectId: req.params.id,
+        metadata: { versionNumber: version.versionNumber, title: title || decision.title },
+        summaryText: `Decision amended to version ${version.versionNumber}: "${title || decision.title}". ${rationale.substring(0, 300)}`,
+        eventType: "evaluated",
+        actor: authorId,
+        auditSnapshot: { versionNumber: version.versionNumber, rationale, context },
       });
 
       res.json(version);
@@ -241,27 +245,32 @@ export async function registerRoutes(
             metadata: { assumptionId: existingAssumption.id },
           });
 
-          // Passive brain recording for alert (fire-and-forget)
-          brainRecorder.logAlertCreated({
-            alertId: newAlert.id,
-            decisionId: existingAssumption.decisionId,
-            alertType: "assumption_expired",
-            severity: "high",
-            message: newAlert.message,
+          logDecision({
+            decisionType: "create_alert",
+            sourceModule: "alerts",
+            subjectType: "alert",
+            subjectId: newAlert.id,
+            metadata: { axiomDecisionId: existingAssumption.decisionId, alertType: "assumption_expired", severity: "high" },
+            summaryText: newAlert.message,
+            eventType: "created",
+            actor: validatorId,
+            auditSnapshot: { alertType: "assumption_expired", severity: "high", message: newAlert.message },
           });
         }
       }
 
-      // Passive brain recording for assumption change (fire-and-forget)
       const updatedAssumption = await storage.getAssumption(req.params.id);
       if (updatedAssumption) {
-        brainRecorder.logAssumptionStatusChanged({
-          assumptionId: req.params.id,
-          decisionId: updatedAssumption.decisionId,
-          validatorId,
-          description: updatedAssumption.description,
-          previousStatus: "unknown",
-          newStatus: status,
+        logDecision({
+          decisionType: "assumption_change",
+          sourceModule: "assumptions",
+          subjectType: "assumption",
+          subjectId: req.params.id,
+          metadata: { axiomDecisionId: updatedAssumption.decisionId, newStatus: status },
+          summaryText: `Assumption "${updatedAssumption.description.substring(0, 200)}" changed to ${status}`,
+          eventType: "logged",
+          actor: validatorId,
+          auditSnapshot: { newStatus: status, description: updatedAssumption.description },
         });
       }
 
@@ -295,14 +304,16 @@ export async function registerRoutes(
 
       const alert = await storage.acknowledgeAlert(req.params.id, userId);
 
-      // Passive brain recording (fire-and-forget)
-      brainRecorder.logAlertAcknowledged({
-        alertId: req.params.id,
-        decisionId: alert.decisionId,
-        userId,
-        alertMessage: alert.message,
-        alertType: alert.type,
-        alertSeverity: alert.severity,
+      logDecision({
+        decisionType: "acknowledge_alert",
+        sourceModule: "alerts",
+        subjectType: "alert",
+        subjectId: req.params.id,
+        metadata: { axiomDecisionId: alert.decisionId, alertType: alert.type, severity: alert.severity },
+        summaryText: `Alert acknowledged: ${alert.message.substring(0, 300)}`,
+        eventType: "logged",
+        actor: userId,
+        auditSnapshot: { alertType: alert.type, severity: alert.severity, message: alert.message },
       });
 
       res.json(alert);

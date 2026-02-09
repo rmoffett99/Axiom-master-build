@@ -135,31 +135,31 @@ export const auditLogs = pgTable("audit_logs", {
 // Backend-only, fire-and-forget. No UI, no enforcement, no auto-execution.
 
 export const decisionLog = pgTable("decision_log", {
-  decisionId: uuid("decision_id").primaryKey().default(sql`gen_random_uuid()`),
+  decisionId: uuid("decision_id").defaultRandom().primaryKey(),
   orgId: uuid("org_id"),
   decisionType: text("decision_type").notNull(),
   sourceModule: text("source_module").notNull(),
   subjectType: text("subject_type").notNull(),
   subjectId: text("subject_id").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   metadata: jsonb("metadata").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const decisionReasoning = pgTable("decision_reasoning", {
-  reasoningId: uuid("reasoning_id").primaryKey().default(sql`gen_random_uuid()`),
-  decisionId: uuid("decision_id").notNull().references(() => decisionLog.decisionId, { onDelete: "cascade" }),
+  reasoningId: uuid("reasoning_id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
   summaryText: text("summary_text").notNull(),
   confidenceScore: doublePrecision("confidence_score"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const decisionAudit = pgTable("decision_audit", {
-  auditId: uuid("audit_id").primaryKey().default(sql`gen_random_uuid()`),
-  decisionId: uuid("decision_id").notNull().references(() => decisionLog.decisionId, { onDelete: "cascade" }),
+  auditId: uuid("audit_id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
   eventType: text("event_type").notNull(),
   actor: text("actor").notNull().default("system"),
   snapshot: jsonb("snapshot").notNull().default({}),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export type DecisionLog = typeof decisionLog.$inferSelect;
