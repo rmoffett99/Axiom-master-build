@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { logDecision } from "./logDecision";
+import { runRules } from "./runRules";
 
 // Validation schemas for API requests
 const createDecisionSchema = z.object({
@@ -152,6 +153,8 @@ export async function registerRoutes(
         eventType: "created",
         actor: ownerId,
         auditSnapshot: { title, context, rationale, assumptionCount: validAssumptions.length },
+      }).then((decisionId) => {
+        if (decisionId) runRules({ decisionId, domain: "decisions", metadata: { title, assumptionCount: validAssumptions.length } });
       });
 
       res.json(decision);
@@ -200,6 +203,8 @@ export async function registerRoutes(
         eventType: "evaluated",
         actor: authorId,
         auditSnapshot: { versionNumber: version.versionNumber, rationale, context },
+      }).then((decisionId) => {
+        if (decisionId) runRules({ decisionId, domain: "decisions", metadata: { versionNumber: version.versionNumber, title: title || decision.title } });
       });
 
       res.json(version);
@@ -255,6 +260,8 @@ export async function registerRoutes(
             eventType: "created",
             actor: validatorId,
             auditSnapshot: { alertType: "assumption_expired", severity: "high", message: newAlert.message },
+          }).then((decisionId) => {
+            if (decisionId) runRules({ decisionId, domain: "alerts", metadata: { alertType: "assumption_expired", severity: "high" } });
           });
         }
       }
@@ -271,6 +278,8 @@ export async function registerRoutes(
           eventType: "logged",
           actor: validatorId,
           auditSnapshot: { newStatus: status, description: updatedAssumption.description },
+        }).then((decisionId) => {
+          if (decisionId) runRules({ decisionId, domain: "assumptions", metadata: { newStatus: status } });
         });
       }
 
@@ -314,6 +323,8 @@ export async function registerRoutes(
         eventType: "logged",
         actor: userId,
         auditSnapshot: { alertType: alert.type, severity: alert.severity, message: alert.message },
+      }).then((decisionId) => {
+        if (decisionId) runRules({ decisionId, domain: "alerts", metadata: { alertType: alert.type, severity: alert.severity } });
       });
 
       res.json(alert);

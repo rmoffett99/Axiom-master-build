@@ -166,6 +166,47 @@ export type DecisionLog = typeof decisionLog.$inferSelect;
 export type DecisionReasoning = typeof decisionReasoning.$inferSelect;
 export type DecisionAudit = typeof decisionAudit.$inferSelect;
 
+// ===== Company Brain v2 (principles, rules, rule hits) =====
+// Backend-only, fire-and-forget. No UI, no enforcement, no auto-execution.
+
+export const principle = pgTable("principle", {
+  principleId: uuid("principle_id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id"),
+  name: text("name").notNull(),
+  statement: text("statement").notNull(),
+  priority: integer("priority").notNull().default(50),
+  domain: text("domain").notNull().default("general"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const rule = pgTable("rule", {
+  ruleId: uuid("rule_id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id"),
+  name: text("name").notNull(),
+  description: text("description"),
+  domain: text("domain").notNull(),
+  severity: text("severity").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  conditionExpr: text("condition_expr").notNull(),
+  outcome: text("outcome").notNull(),
+  params: jsonb("params").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const decisionRuleHit = pgTable("decision_rule_hit", {
+  hitId: uuid("hit_id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  ruleId: uuid("rule_id").notNull(),
+  hit: boolean("hit").notNull(),
+  hitDetails: jsonb("hit_details").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type Principle = typeof principle.$inferSelect;
+export type Rule = typeof rule.$inferSelect;
+export type DecisionRuleHit = typeof decisionRuleHit.$inferSelect;
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true, createdAt: true });

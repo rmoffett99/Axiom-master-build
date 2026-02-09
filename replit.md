@@ -122,6 +122,14 @@ npm run db:push  # Push schema changes
 - Status: Planning document only — not implemented, no current app changes
 
 ## Recent Changes
+- 2026-02-09: Company Brain v2 — principles, rules engine, rule hits
+  - Added 3 new tables: principle, rule, decision_rule_hit (all uuid PKs, defaultRandom())
+  - principle: org-scoped guiding statements with priority and domain
+  - rule: conditional expressions evaluated against decision metadata (conditionExpr + outcome)
+  - decision_rule_hit: records each rule evaluation result (hit boolean + hitDetails jsonb)
+  - Created server/runRules.ts: queries active rules by domain, evaluates conditionExpr via Function(), inserts hits
+  - Wired runRules() at all 5 existing logDecision choke points via .then() — fire-and-forget, fail-silent
+  - No UI changes, no behavior changes, no new routes — passive rules layer only
 - 2026-02-09: Company Brain v1 schema replaced with refined design
   - Replaced brain_decision_log/brain_reasoning_summary/brain_audit_trail with decision_log/decision_reasoning/decision_audit
   - New tables use uuid PKs, proper FK relationships (reasoning + audit reference decision_log)
