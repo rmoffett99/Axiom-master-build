@@ -19,7 +19,12 @@ import {
   auditAccessLog,
   auditExportLog,
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc, and, gte, lte, ilike, sql, type SQL } from "drizzle-orm";
+import {
+  decisionLog,
+  decisionAudit,
+  decisionReasoning,
+} from "@shared/schema";
 
 // Validation schemas for API requests
 const createDecisionSchema = z.object({
@@ -697,6 +702,223 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error recording assumption validation:", error);
       res.status(500).json({ error: "Failed to record assumption validation" });
+    }
+  });
+
+  // ===== Audit Trail (Read-Only) =====
+  app.get("/api/audit", async (req, res) => {
+    try {
+      const {
+        action,
+        actor,
+        resourceType,
+        decisionId,
+        dateFrom,
+        dateTo,
+        limit: limitParam,
+        offset: offsetParam,
+      } = req.query;
+
+      const pageLimit = Math.min(Number(limitParam) || 50, 200);
+      const pageOffset = Number(offsetParam) || 0;
+
+      const db = getDb();
+
+      const auditRows = await db
+        .select({
+          auditId: decisionAudit.auditId,
+          decisionId: decisionAudit.decisionId,
+          eventType: decisionAudit.eventType,
+          actor: decisionAudit.actor,
+          snapshot: decisionAudit.snapshot,
+          createdAt: decisionAudit.createdAt,
+          organizationId: decisionAudit.organizationId,
+          logDecisionType: decisionLog.decisionType,
+          logSourceModule: decisionLog.sourceModule,
+          logSubjectType: decisionLog.subjectType,
+          logSubjectId: decisionLog.subjectId,
+          logMetadata: decisionLog.metadata,
+          reasoningSummary: decisionReasoning.summaryText,
+          reasoningConfidence: decisionReasoning.confidenceScore,
+        })
+        .from(decisionAudit)
+        .leftJoin(decisionLog, eq(decisionAudit.decisionId, decisionLog.decisionId))
+        .leftJoin(decisionReasoning, eq(decisionAudit.decisionId, decisionReasoning.decisionId))
+        .where(
+          and(
+            ...[
+              action && typeof action === "string"
+                ? eq(decisionAudit.eventType, action)
+                : undefined,
+              actor && typeof actor === "string"
+                ? ilike(decisionAudit.actor, `%${actor}%`)
+                : undefined,
+              resourceType && typeof resourceType === "string"
+                ? eq(decisionLog.subjectType, resourceType)
+                : undefined,
+              decisionId && typeof decisionId === "string"
+                ? eq(decisionAudit.decisionId, decisionId)
+                : undefined,
+              dateFrom && typeof dateFrom === "string"
+                ? gte(decisionAudit.createdAt, new Date(dateFrom))
+                : undefined,
+              dateTo && typeof dateTo === "string"
+                ? lte(decisionAudit.createdAt, new Date(dateTo))
+                : undefined,
+            ].filter(Boolean) as SQL[]
+          )
+        )
+        .orderBy(desc(decisionAudit.createdAt))
+        .limit(pageLimit + pageOffset);
+
+      const accessRows = await db
+        .select()
+        .from(auditAccessLog)
+        .where(
+          and(
+            ...[
+              action && typeof action === "string" && action !== "access"
+                ? sql`false`
+                : undefined,
+              actor && typeof actor === "string"
+                ? ilike(auditAccessLog.userId, `%${actor}%`)
+                : undefined,
+              decisionId && typeof decisionId === "string"
+                ? eq(auditAccessLog.decisionId, decisionId)
+                : undefined,
+              dateFrom && typeof dateFrom === "string"
+                ? gte(auditAccessLog.accessedAt, new Date(dateFrom))
+                : undefined,
+              dateTo && typeof dateTo === "string"
+                ? lte(auditAccessLog.accessedAt, new Date(dateTo))
+                : undefined,
+              resourceType && typeof resourceType === "string" && resourceType !== "decision"
+                ? sql`false`
+                : undefined,
+            ].filter(Boolean) as SQL[]
+          )
+        )
+        .orderBy(desc(auditAccessLog.accessedAt))
+        .limit(pageLimit + pageOffset);
+
+      const exportRows = await db
+        .select()
+        .from(auditExportLog)
+        .where(
+          and(
+            ...[
+              action && typeof action === "string" && action !== "export"
+                ? sql`false`
+                : undefined,
+              actor && typeof actor === "string"
+                ? ilike(auditExportLog.generatedBy, `%${actor}%`)
+                : undefined,
+              decisionId && typeof decisionId === "string"
+                ? eq(auditExportLog.decisionId, decisionId)
+                : undefined,
+              dateFrom && typeof dateFrom === "string"
+                ? gte(auditExportLog.generatedAt, new Date(dateFrom))
+                : undefined,
+              dateTo && typeof dateTo === "string"
+                ? lte(auditExportLog.generatedAt, new Date(dateTo))
+                : undefined,
+              resourceType && typeof resourceType === "string" && resourceType !== "export"
+                ? sql`false`
+                : undefined,
+            ].filter(Boolean) as SQL[]
+          )
+        )
+        .orderBy(desc(auditExportLog.generatedAt))
+        .limit(pageLimit + pageOffset);
+
+      const unified: {
+        id: string;
+        timestamp: string;
+        action: string;
+        actor: string;
+        resourceType: string;
+        resourceId: string;
+        status: string;
+        source: string;
+        metadata: Record<string, unknown>;
+      }[] = [];
+
+      for (const row of auditRows) {
+        unified.push({
+          id: row.auditId,
+          timestamp: row.createdAt.toISOString(),
+          action: row.eventType,
+          actor: row.actor,
+          resourceType: row.logSubjectType || "decision",
+          resourceId: row.logSubjectId || row.decisionId,
+          status: "recorded",
+          source: "decision_audit",
+          metadata: {
+            decisionId: row.decisionId,
+            decisionType: row.logDecisionType,
+            sourceModule: row.logSourceModule,
+            snapshot: row.snapshot,
+            summary: row.reasoningSummary,
+            confidenceScore: row.reasoningConfidence,
+            logMetadata: row.logMetadata,
+            organizationId: row.organizationId,
+          },
+        });
+      }
+
+      for (const row of accessRows) {
+        unified.push({
+          id: row.id,
+          timestamp: row.accessedAt.toISOString(),
+          action: "access",
+          actor: row.userId,
+          resourceType: "decision",
+          resourceId: row.decisionId,
+          status: "recorded",
+          source: "audit_access_log",
+          metadata: {
+            decisionId: row.decisionId,
+            ipAddress: row.ipAddress,
+            organizationId: row.organizationId,
+          },
+        });
+      }
+
+      for (const row of exportRows) {
+        unified.push({
+          id: row.id,
+          timestamp: row.generatedAt.toISOString(),
+          action: "export",
+          actor: row.generatedBy,
+          resourceType: "export",
+          resourceId: row.decisionId,
+          status: "recorded",
+          source: "audit_export_log",
+          metadata: {
+            decisionId: row.decisionId,
+            exportType: row.exportType,
+            exportPurpose: row.exportPurpose,
+            bundleHash: row.bundleHash,
+            exportFileSize: row.exportFileSize,
+            organizationId: row.organizationId,
+          },
+        });
+      }
+
+      unified.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      const total = unified.length;
+      const paged = unified.slice(pageOffset, pageOffset + pageLimit);
+
+      res.json({
+        events: paged,
+        total,
+        limit: pageLimit,
+        offset: pageOffset,
+      });
+    } catch (error) {
+      console.error("Error fetching audit trail:", error);
+      res.status(500).json({ error: "Failed to fetch audit trail" });
     }
   });
 

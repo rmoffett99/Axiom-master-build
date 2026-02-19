@@ -1,0 +1,111 @@
+AXIOM — V1 AUDIT TRAIL UI (ENTERPRISE-READY, MINIMAL SCOPE)
+
+GOAL:
+Expose existing audit data in a human-reviewable, auditor-friendly UI.
+This is a READ-ONLY inspection layer — NOT analytics, NOT dashboards.
+
+============================================================
+SCOPE (DO NOT EXPAND)
+============================================================
+
+Build a minimal but enterprise-credible Audit Trail UI that allows:
+- browsing audit events
+- filtering/searching
+- inspecting immutable audit details
+
+NO charts
+NO metrics
+NO edits
+NO mutations
+
+============================================================
+ROUTE
+============================================================
+
+/org/:orgSlug/audit
+
+Must be:
+- organization-scoped
+- RLS-safe
+- read-only
+
+============================================================
+AUDIT TRAIL TABLE (PRIMARY VIEW)
+============================================================
+
+Display a table with columns:
+- timestamp
+- action
+- actor (user or agent)
+- resource_type
+- resource_id
+- status / outcome
+
+Default sort:
+- newest → oldest
+
+============================================================
+FILTERS (CRITICAL)
+============================================================
+
+Provide filters for:
+- date range
+- action type
+- actor (user / agent)
+- resource type (decision, version, export, override)
+- decision_id (exact match)
+
+Filters must be fast and server-backed.
+Auditors rely on filters more than visuals.
+
+============================================================
+AUDIT EVENT DETAIL VIEW
+============================================================
+
+On row click, open a detail drawer or page showing:
+- full audit metadata (pretty-printed JSON)
+- organization_id (read-only)
+- user_id / agent_id
+- decision_id and decision_version (if applicable)
+- confidence score (if present)
+- timestamps
+
+Include clear visual indicator:
+"Audit records are immutable and append-only."
+
+============================================================
+SECURITY & DATA RULES
+============================================================
+
+- Read-only UI
+- No mutation endpoints
+- Respect existing RLS policies
+- Require organization context at all times
+- Fail closed if org context is missing
+
+============================================================
+NON-GOALS (DO NOT BUILD YET)
+============================================================
+
+- Charts or graphs
+- Risk scoring
+- Aggregations
+- Dashboards
+- Cross-org views
+- Export buttons (handled elsewhere)
+
+============================================================
+SUCCESS CRITERIA
+============================================================
+
+An auditor or compliance reviewer can:
+- find a decision
+- see every related action
+- understand who did what and when
+- trust that the data cannot be altered
+
+Time-to-understand target: under 60 seconds.
+
+============================================================
+END
+============================================================

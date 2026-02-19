@@ -17,6 +17,7 @@ import {
   FileText, 
   Bell, 
   Eye,
+  Shield,
   Plus,
   Settings,
   ChevronsUpDown,
@@ -55,6 +56,11 @@ function getNavItems(orgSlug: string | null) {
       title: "Board Mode",
       url: `${prefix}/board`,
       icon: Eye,
+    },
+    {
+      title: "Audit Trail",
+      url: `${prefix}/audit`,
+      icon: Shield,
     },
   ];
 }

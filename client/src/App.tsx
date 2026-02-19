@@ -16,6 +16,7 @@ import DecisionDetailPage from "@/pages/decision-detail";
 import DecisionNewPage from "@/pages/decision-new";
 import AlertsPage from "@/pages/alerts";
 import BoardModePage from "@/pages/board";
+import AuditPage from "@/pages/audit";
 import NotFound from "@/pages/not-found";
 
 const sidebarStyle = {
@@ -32,6 +33,7 @@ function OrgRoutes() {
       <Route path="/org/:orgSlug/decisions" component={DecisionsPage} />
       <Route path="/org/:orgSlug/alerts" component={AlertsPage} />
       <Route path="/org/:orgSlug/board" component={BoardModePage} />
+      <Route path="/org/:orgSlug/audit" component={AuditPage} />
       <Route path="/org/:orgSlug" component={DashboardPage} />
       <Route component={NotFound} />
     </Switch>
