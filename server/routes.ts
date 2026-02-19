@@ -3,10 +3,22 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { logDecision } from "./logDecision";
-import { runRules } from "./runRules";
 import { approveActionProposal, executeApprovedAction } from "./actionProposals";
+import { replayDecision } from "./replayEngine";
+import { computeBundleHash } from "./brainIntegrity";
 import { db } from "./db";
-import { actionProposal, automationSettings } from "@shared/schema";
+import {
+  actionProposal,
+  automationSettings,
+  brainDecision,
+  decisionInputSnapshot,
+  decisionRuleHit,
+  principlesApplied,
+  overrideHistory,
+  assumptionValidationHistory,
+  auditAccessLog,
+  auditExportLog,
+} from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 // Validation schemas for API requests
@@ -157,9 +169,7 @@ export async function registerRoutes(
         eventType: "created",
         actor: ownerId,
         auditSnapshot: { title, context, rationale, assumptionCount: validAssumptions.length },
-      }).then((decisionId) => {
-        if (decisionId) runRules({ decisionId, domain: "decisions", metadata: { title, assumptionCount: validAssumptions.length } });
-      });
+      }).catch(() => {});
 
       res.json(decision);
     } catch (error) {
@@ -207,9 +217,7 @@ export async function registerRoutes(
         eventType: "evaluated",
         actor: authorId,
         auditSnapshot: { versionNumber: version.versionNumber, rationale, context },
-      }).then((decisionId) => {
-        if (decisionId) runRules({ decisionId, domain: "decisions", metadata: { versionNumber: version.versionNumber, title: title || decision.title } });
-      });
+      }).catch(() => {});
 
       res.json(version);
     } catch (error) {
@@ -264,9 +272,7 @@ export async function registerRoutes(
             eventType: "created",
             actor: validatorId,
             auditSnapshot: { alertType: "assumption_expired", severity: "high", message: newAlert.message },
-          }).then((decisionId) => {
-            if (decisionId) runRules({ decisionId, domain: "alerts", metadata: { alertType: "assumption_expired", severity: "high" } });
-          });
+          }).catch(() => {});
         }
       }
 
@@ -282,9 +288,7 @@ export async function registerRoutes(
           eventType: "logged",
           actor: validatorId,
           auditSnapshot: { newStatus: status, description: updatedAssumption.description },
-        }).then((decisionId) => {
-          if (decisionId) runRules({ decisionId, domain: "assumptions", metadata: { newStatus: status } });
-        });
+        }).catch(() => {});
       }
 
       res.json(assumption);
@@ -327,9 +331,7 @@ export async function registerRoutes(
         eventType: "logged",
         actor: userId,
         auditSnapshot: { alertType: alert.type, severity: alert.severity, message: alert.message },
-      }).then((decisionId) => {
-        if (decisionId) runRules({ decisionId, domain: "alerts", metadata: { alertType: alert.type, severity: alert.severity } });
-      });
+      }).catch(() => {});
 
       res.json(alert);
     } catch (error) {
@@ -456,6 +458,192 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating automation settings:", error);
       res.status(500).json({ error: "Failed to update automation settings" });
+    }
+  });
+
+  // ===== Company Brain V5: Replay Engine =====
+
+  app.post("/api/brain/replay/:id", async (req, res) => {
+    try {
+      const result = await replayDecision(req.params.id);
+      if (!result) {
+        return res.status(404).json({ error: "Decision not found or replay failed" });
+      }
+      res.json(result);
+    } catch (error) {
+      console.error("Error replaying decision:", error);
+      res.status(500).json({ error: "Failed to replay decision" });
+    }
+  });
+
+  // ===== Super Audit Layer: Access & Export Logging =====
+
+  app.post("/api/brain/access-log", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        userId: z.string().min(1),
+        decisionId: z.string().uuid(),
+        ipAddress: z.string().optional(),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const [log] = await db.insert(auditAccessLog).values({
+        userId: parseResult.data.userId,
+        decisionId: parseResult.data.decisionId,
+        ipAddress: parseResult.data.ipAddress || null,
+        accessedAt: new Date(),
+      }).returning();
+
+      res.json(log);
+    } catch (error) {
+      console.error("Error logging access:", error);
+      res.status(500).json({ error: "Failed to log access" });
+    }
+  });
+
+  const exportRateLimiter: Record<string, number[]> = {};
+  const EXPORT_RATE_LIMIT = 10;
+  const EXPORT_RATE_WINDOW_MS = 60000;
+
+  app.post("/api/brain/export", async (req, res) => {
+    try {
+      const clientIp = req.ip || "unknown";
+      const now = Date.now();
+      if (!exportRateLimiter[clientIp]) exportRateLimiter[clientIp] = [];
+      exportRateLimiter[clientIp] = exportRateLimiter[clientIp].filter((t) => now - t < EXPORT_RATE_WINDOW_MS);
+      if (exportRateLimiter[clientIp].length >= EXPORT_RATE_LIMIT) {
+        return res.status(429).json({ error: "Rate limit exceeded. Try again later." });
+      }
+      exportRateLimiter[clientIp].push(now);
+
+      const parseResult = z.object({
+        decisionId: z.string().uuid(),
+        exportType: z.enum(["PDF", "JSON", "CSV", "BUNDLE"]),
+        exportPurpose: z.string().min(1),
+        generatedBy: z.string().min(1),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const { decisionId, exportType, exportPurpose, generatedBy } = parseResult.data;
+
+      const [decision] = await db.select().from(brainDecision).where(eq(brainDecision.id, decisionId));
+      if (!decision) {
+        return res.status(404).json({ error: "Decision not found" });
+      }
+
+      const snapshots = await db.select().from(decisionInputSnapshot).where(eq(decisionInputSnapshot.decisionId, decisionId));
+      const rules = await db.select().from(decisionRuleHit).where(eq(decisionRuleHit.decisionId, decisionId));
+      const principles = await db.select().from(principlesApplied).where(eq(principlesApplied.decisionId, decisionId));
+      const overrides = await db.select().from(overrideHistory).where(eq(overrideHistory.decisionId, decisionId));
+      const assumptions = await db.select().from(assumptionValidationHistory).where(eq(assumptionValidationHistory.decisionId, decisionId));
+
+      const exportTimestamp = new Date().toISOString();
+
+      const bundleHash = computeBundleHash({
+        decisionData: decision as unknown as Record<string, unknown>,
+        snapshot: (snapshots[0]?.inputJson as Record<string, unknown>) || {},
+        rules,
+        principles,
+        overrides,
+        assumptions,
+        exportTimestamp,
+      });
+
+      const exportData = JSON.stringify({
+        decision,
+        snapshots,
+        rules,
+        principles,
+        overrides,
+        assumptions,
+        exportTimestamp,
+        bundleHash,
+      });
+
+      const exportFileSize = Buffer.byteLength(exportData, "utf8");
+
+      const [exportLog] = await db.insert(auditExportLog).values({
+        decisionId,
+        exportType,
+        exportPurpose,
+        generatedBy,
+        generatedAt: new Date(),
+        bundleHash,
+        exportFileSize,
+      }).returning();
+
+      res.json({
+        exportLog,
+        bundleHash,
+        exportFileSize,
+        data: exportType === "JSON" ? JSON.parse(exportData) : undefined,
+      });
+    } catch (error) {
+      console.error("Error exporting decision:", error);
+      res.status(500).json({ error: "Failed to export decision" });
+    }
+  });
+
+  // ===== Override History (for manual overrides) =====
+
+  app.post("/api/brain/override", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        decisionId: z.string().uuid(),
+        overriddenBy: z.string().min(1),
+        role: z.string().min(1),
+        previousOutcome: z.string().min(1),
+        newOutcome: z.string().min(1),
+        reason: z.string().min(1),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const [record] = await db.insert(overrideHistory).values({
+        ...parseResult.data,
+        createdAt: new Date(),
+      }).returning();
+
+      res.json(record);
+    } catch (error) {
+      console.error("Error recording override:", error);
+      res.status(500).json({ error: "Failed to record override" });
+    }
+  });
+
+  // ===== Assumption Validation History =====
+
+  app.post("/api/brain/assumption-validation", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        decisionId: z.string().uuid(),
+        assumptionKey: z.string().min(1),
+        oldStatus: z.string().min(1),
+        newStatus: z.string().min(1),
+        validatedBy: z.string().min(1),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const [record] = await db.insert(assumptionValidationHistory).values({
+        ...parseResult.data,
+        validatedAt: new Date(),
+      }).returning();
+
+      res.json(record);
+    } catch (error) {
+      console.error("Error recording assumption validation:", error);
+      res.status(500).json({ error: "Failed to record assumption validation" });
     }
   });
 

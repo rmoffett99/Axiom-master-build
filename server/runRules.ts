@@ -25,9 +25,9 @@ export async function runRules(input: RunRulesInput): Promise<void> {
     for (const r of activeRules) {
       let hit = false;
       let details: Record<string, unknown> = {};
+      const now = new Date();
 
       try {
-        // eslint-disable-next-line no-new-func
         const fn = new Function("metadata", `return (${r.conditionExpr});`);
         hit = Boolean(fn(metadata));
         details = { evaluated: true };
@@ -39,8 +39,12 @@ export async function runRules(input: RunRulesInput): Promise<void> {
       await db.insert(decisionRuleHit).values({
         decisionId,
         ruleId: r.ruleId,
+        ruleVersion: "v1.0",
+        severity: r.severity,
         hit,
+        outcome: r.outcome,
         hitDetails: details,
+        evaluatedAt: now,
       });
     }
 

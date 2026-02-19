@@ -122,6 +122,23 @@ npm run db:push  # Push schema changes
 - Status: Planning document only — not implemented, no current app changes
 
 ## Recent Changes
+- 2026-02-19: Company Brain V1-V8 Master Work Order — Full Enterprise Implementation
+  - V1 Core Lock: brain_decision table with 17 fields (domain, subject_type, triggered_by, model_version, confidence_score, alignment_score + version/formula/computed_at, outcome, status, snapshot_hash, decision_hash, decision_fingerprint UNIQUE)
+  - V1 Satellite tables: decision_input_snapshot, principles_applied, override_history, assumption_validation_history, drift_metrics
+  - V1 Enhanced decision_rule_hit: added rule_version, severity, outcome, evaluated_at columns
+  - Write-time integrity: SHA256 hashing for snapshot_hash, decision_hash, decision_fingerprint — all computed at INSERT only, never recomputed
+  - Alignment score: deterministic formula (rule_hits*15 + avg_principle_priority*0.6 + override_bonus + validated_assumptions*5), stored with version + formula version + computed_at, immutable
+  - V3 Super Audit: audit_access_log (user_id, decision_id, ip_address), audit_export_log (export_type, export_purpose REQUIRED, bundle_hash, export_file_size)
+  - V4 Immutability: DB triggers blocking UPDATE/DELETE on 15 audit tables (brain_decision, decision_input_snapshot, decision_rule_hit, principles_applied, override_history, assumption_validation_history, drift_metrics, audit_access_log, audit_export_log, replay_mismatch_alerts, decision_log, decision_reasoning, decision_audit, action_approval, action_execution)
+  - V5 Replay Engine: deterministic replay loads snapshot + rule hits + principles, recomputes alignment_score, compares outcome; replay_mismatch_alerts table with severity (LOW/MEDIUM/CRITICAL); CRITICAL on outcome mismatch
+  - V6 Performance: 14 indexes on brain tables (decision_id, created_at, domain, rule_id, principle_id, fingerprint)
+  - V7 Security: Rate limiting on export endpoint (10/min), Zod validation on all inputs, no raw SQL interpolation
+  - UTC enforcement: All brain table timestamps use TIMESTAMPTZ
+  - New files: server/brainIntegrity.ts (SHA256, alignment scoring, bundle hashing), server/replayEngine.ts (deterministic replay)
+  - New API routes: POST /api/brain/replay/:id, POST /api/brain/access-log, POST /api/brain/export, POST /api/brain/override, POST /api/brain/assumption-validation
+  - No UI changes, no demo behavior changes — backend infrastructure only
+  - Master work order: attached_assets/Pasted-AXIOM-COMPANY-BRAIN-MASTER-IMPLEMENTATION-WORK-ORDER-FI_1771512188221.txt
+  - Verification work order: attached_assets/Pasted-AXIOM-AGENT-VERIFICATION-REMEDIATION-WORK-ORDER-Purpose_1771512698116.txt
 - 2026-02-19: Company Brain v3 — controlled actions + approvals
   - Added 5 new tables: action, action_proposal, action_approval, action_execution, automation_settings
   - action: registry of action types (send_email, block_payment, etc.) with reversible flag

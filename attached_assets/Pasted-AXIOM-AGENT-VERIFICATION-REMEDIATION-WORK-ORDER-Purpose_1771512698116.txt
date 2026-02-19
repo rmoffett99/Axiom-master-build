@@ -1,0 +1,237 @@
+AXIOM — AGENT VERIFICATION & REMEDIATION WORK ORDER
+Purpose: Confirm full implementation of the Company Brain Master Plan.
+Mode: STRICT AUDIT + GAP REMEDIATION.
+No assumptions. No partial credit.
+
+------------------------------------------------------------
+STEP 1 — STOP & AUDIT (DO NOT IMPLEMENT YET)
+------------------------------------------------------------
+
+Perform a FULL verification against the checklist below.
+For EACH item, explicitly return one of:
+- IMPLEMENTED
+- PARTIALLY IMPLEMENTED
+- NOT IMPLEMENTED
+
+If PARTIALLY or NOT IMPLEMENTED, list:
+- Missing fields
+- Missing constraints
+- Missing logic
+- Missing protections
+
+------------------------------------------------------------
+STEP 2 — CORE TABLE VERIFICATION (V1 LOCK)
+------------------------------------------------------------
+
+Decision table MUST contain ALL of the following:
+
+[ ] id (UUID, PK)
+[ ] domain
+[ ] subject_type
+[ ] subject_id
+[ ] triggered_by
+[ ] model_version
+[ ] confidence_score
+[ ] alignment_score
+[ ] alignment_score_version (TEXT, NOT NULL)
+[ ] alignment_formula_version (TEXT, NOT NULL)
+[ ] alignment_score_computed_at (TIMESTAMPTZ, NOT NULL)
+[ ] outcome
+[ ] status
+[ ] created_at (TIMESTAMPTZ, UTC enforced)
+[ ] snapshot_hash (TEXT, NOT NULL)
+[ ] decision_hash (TEXT, NOT NULL)
+[ ] decision_fingerprint (TEXT, UNIQUE, NOT NULL)
+
+DecisionInputSnapshot:
+[ ] decision_id (FK)
+[ ] input_json (JSONB)
+[ ] hash (TEXT, NOT NULL)
+[ ] created_at (TIMESTAMPTZ, UTC)
+
+DecisionRuleHit:
+[ ] id
+[ ] decision_id
+[ ] rule_id
+[ ] rule_version
+[ ] severity
+[ ] hit (BOOLEAN)
+[ ] outcome
+[ ] evaluated_at (TIMESTAMPTZ, UTC)
+
+PrinciplesApplied:
+[ ] id
+[ ] decision_id
+[ ] principle_id
+[ ] principle_version
+[ ] priority
+[ ] applied (BOOLEAN)
+
+OverrideHistory:
+[ ] id
+[ ] decision_id
+[ ] overridden_by
+[ ] role
+[ ] previous_outcome
+[ ] new_outcome
+[ ] reason
+[ ] created_at (TIMESTAMPTZ, UTC)
+
+AssumptionValidationHistory:
+[ ] id
+[ ] decision_id
+[ ] assumption_key
+[ ] old_status
+[ ] new_status
+[ ] validated_by
+[ ] validated_at (TIMESTAMPTZ, UTC)
+
+DriftMetrics:
+[ ] id
+[ ] metric_name
+[ ] baseline_value
+[ ] current_value
+[ ] computed_at (TIMESTAMPTZ, UTC)
+[ ] decision_context
+
+------------------------------------------------------------
+STEP 3 — WRITE-TIME INTEGRITY VERIFICATION
+------------------------------------------------------------
+
+Confirm ALL of the following are computed at INSERT TIME only:
+
+[ ] decision_fingerprint = SHA256(input_snapshot + sorted(rule_hits) + sorted(principles) + outcome + model_version + timestamp)
+[ ] decision_hash = SHA256(snapshot_hash + sorted(rule_hits) + sorted(principles) + outcome + timestamp)
+[ ] alignment_score computed once
+[ ] alignment_score_version stored
+[ ] alignment_formula_version stored
+[ ] alignment_score NEVER recomputed historically
+
+If ANY are recomputed dynamically → FLAG AS FAILURE.
+
+------------------------------------------------------------
+STEP 4 — IMMUTABILITY ENFORCEMENT (V4)
+------------------------------------------------------------
+
+Confirm ALL audit-related tables are:
+
+[ ] INSERT ONLY
+[ ] UPDATE blocked via DB trigger
+[ ] DELETE blocked via DB trigger
+[ ] No soft deletes
+[ ] Located in audit_schema (or equivalent isolation)
+
+Confirm role separation exists:
+[ ] Write role = INSERT only
+[ ] Read role = SELECT only
+
+------------------------------------------------------------
+STEP 5 — SUPER AUDIT LAYER VERIFICATION (V3)
+------------------------------------------------------------
+
+audit_access_log MUST exist with:
+[ ] user_id
+[ ] decision_id
+[ ] accessed_at (UTC)
+[ ] ip_address
+
+audit_export_log MUST exist with:
+[ ] decision_id
+[ ] export_type
+[ ] export_purpose (REQUIRED)
+[ ] generated_by
+[ ] generated_at (UTC)
+[ ] bundle_hash
+[ ] export_file_size
+
+Confirm bundle_hash includes:
+[ ] decision data
+[ ] snapshot
+[ ] rules
+[ ] principles
+[ ] overrides
+[ ] assumptions
+[ ] export_timestamp
+
+------------------------------------------------------------
+STEP 6 — REPLAY ENGINE VERIFICATION (V5)
+------------------------------------------------------------
+
+Confirm replay engine does ALL of the following:
+
+[ ] Loads stored snapshot
+[ ] Loads rule versions used
+[ ] Loads principle versions used
+[ ] Re-runs evaluation deterministically
+[ ] Compares outcome AND alignment_score
+
+Confirm replay_mismatch_alerts table exists:
+
+[ ] decision_id
+[ ] replayed_outcome
+[ ] historical_outcome
+[ ] delta
+[ ] severity (LOW | MEDIUM | CRITICAL)
+[ ] replayed_at (UTC)
+
+Confirm CRITICAL mismatches trigger admin alert.
+
+------------------------------------------------------------
+STEP 7 — UTC ENFORCEMENT
+------------------------------------------------------------
+
+Confirm UTC is enforced via:
+[ ] DB CHECK constraint OR
+[ ] App-layer enforcement + test coverage
+
+If mixed timezone data possible → FLAG AS FAILURE.
+
+------------------------------------------------------------
+STEP 8 — PERFORMANCE & SECURITY
+------------------------------------------------------------
+
+Confirm indexes exist for:
+[ ] Decision.id
+[ ] Decision.created_at
+[ ] Decision.domain
+[ ] DecisionRuleHit.decision_id
+[ ] PrinciplesApplied.decision_id
+[ ] OverrideHistory.decision_id
+
+Confirm:
+[ ] Report generation <2s (p95)
+[ ] Lineage queries <500ms
+[ ] Export endpoints rate-limited
+[ ] Signed URLs used for downloads
+[ ] Access logging enabled
+
+------------------------------------------------------------
+STEP 9 — REMEDIATION (ONLY AFTER AUDIT)
+------------------------------------------------------------
+
+For EACH item marked PARTIALLY or NOT IMPLEMENTED:
+
+1) Implement missing schema/logic
+2) Add required constraints
+3) Add tests validating behavior
+4) Re-run verification checklist
+5) Confirm PASS for every line item
+
+------------------------------------------------------------
+FINAL OUTPUT REQUIRED FROM AGENT
+------------------------------------------------------------
+
+Return:
+1) Completed checklist with PASS/FAIL per item
+2) List of fixes applied
+3) Confirmation that:
+   - Decisions are immutable
+   - Replay is deterministic
+   - Audit artifacts are defensible
+   - Backend is enterprise-ready
+
+NO FEATURE WORK.
+NO UI WORK.
+NO SCOPE EXPANSION.
+
+This task is COMPLETE ONLY when ALL checklist items PASS.

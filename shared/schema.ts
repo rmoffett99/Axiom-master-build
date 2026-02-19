@@ -198,8 +198,12 @@ export const decisionRuleHit = pgTable("decision_rule_hit", {
   hitId: uuid("hit_id").defaultRandom().primaryKey(),
   decisionId: uuid("decision_id").notNull(),
   ruleId: uuid("rule_id").notNull(),
+  ruleVersion: text("rule_version"),
+  severity: text("severity"),
   hit: boolean("hit").notNull(),
+  outcome: text("outcome"),
   hitDetails: jsonb("hit_details").notNull().default({}),
+  evaluatedAt: timestamp("evaluated_at", { withTimezone: true }).defaultNow().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -269,6 +273,122 @@ export type ActionProposal = typeof actionProposal.$inferSelect;
 export type ActionApproval = typeof actionApproval.$inferSelect;
 export type ActionExecution = typeof actionExecution.$inferSelect;
 export type AutomationSettings = typeof automationSettings.$inferSelect;
+
+// ===== Company Brain V1 Core Lock — Enterprise Decision Record =====
+// Comprehensive decision table per Master Work Order spec.
+// All integrity fields computed at INSERT time only. Never recomputed.
+
+export const brainDecision = pgTable("brain_decision", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  domain: text("domain").notNull(),
+  subjectType: text("subject_type").notNull(),
+  subjectId: text("subject_id").notNull(),
+  triggeredBy: text("triggered_by").notNull().default("system"),
+  modelVersion: text("model_version").notNull().default("v1.0"),
+  confidenceScore: doublePrecision("confidence_score"),
+  alignmentScore: doublePrecision("alignment_score").notNull().default(0),
+  alignmentScoreVersion: text("alignment_score_version").notNull().default("v1.0"),
+  alignmentFormulaVersion: text("alignment_formula_version").notNull().default("v1.0-2026Q1"),
+  alignmentScoreComputedAt: timestamp("alignment_score_computed_at", { withTimezone: true }).notNull().defaultNow(),
+  outcome: text("outcome").notNull(),
+  status: text("status").notNull().default("recorded"),
+  snapshotHash: text("snapshot_hash").notNull(),
+  decisionHash: text("decision_hash").notNull(),
+  decisionFingerprint: text("decision_fingerprint").notNull().unique(),
+  hashTimestamp: text("hash_timestamp").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const decisionInputSnapshot = pgTable("decision_input_snapshot", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  inputJson: jsonb("input_json").notNull(),
+  hash: text("hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const principlesApplied = pgTable("principles_applied", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  principleId: uuid("principle_id").notNull(),
+  principleVersion: text("principle_version").notNull().default("v1.0"),
+  priority: integer("priority").notNull().default(50),
+  applied: boolean("applied").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const overrideHistory = pgTable("override_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  overriddenBy: text("overridden_by").notNull(),
+  role: text("role").notNull(),
+  previousOutcome: text("previous_outcome").notNull(),
+  newOutcome: text("new_outcome").notNull(),
+  reason: text("reason").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const assumptionValidationHistory = pgTable("assumption_validation_history", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  assumptionKey: text("assumption_key").notNull(),
+  oldStatus: text("old_status").notNull(),
+  newStatus: text("new_status").notNull(),
+  validatedBy: text("validated_by").notNull(),
+  validatedAt: timestamp("validated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const driftMetrics = pgTable("drift_metrics", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  metricName: text("metric_name").notNull(),
+  baselineValue: doublePrecision("baseline_value").notNull(),
+  currentValue: doublePrecision("current_value").notNull(),
+  computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+  decisionContext: text("decision_context"),
+});
+
+// ===== Super Audit Layer (V3 of Master Work Order) =====
+
+export const auditAccessLog = pgTable("audit_access_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id").notNull(),
+  decisionId: uuid("decision_id").notNull(),
+  accessedAt: timestamp("accessed_at", { withTimezone: true }).notNull().defaultNow(),
+  ipAddress: text("ip_address"),
+});
+
+export const auditExportLog = pgTable("audit_export_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  exportType: text("export_type").notNull(),
+  exportPurpose: text("export_purpose").notNull(),
+  generatedBy: text("generated_by").notNull(),
+  generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+  bundleHash: text("bundle_hash").notNull(),
+  exportFileSize: integer("export_file_size"),
+});
+
+// ===== Replay Engine (V5 of Master Work Order) =====
+
+export const replayMismatchAlerts = pgTable("replay_mismatch_alerts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  replayedOutcome: text("replayed_outcome").notNull(),
+  historicalOutcome: text("historical_outcome").notNull(),
+  delta: doublePrecision("delta"),
+  severity: text("severity").notNull(),
+  replayedAt: timestamp("replayed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type BrainDecision = typeof brainDecision.$inferSelect;
+export type DecisionInputSnapshot = typeof decisionInputSnapshot.$inferSelect;
+export type PrinciplesApplied = typeof principlesApplied.$inferSelect;
+export type OverrideHistory = typeof overrideHistory.$inferSelect;
+export type AssumedValidationHistory = typeof assumptionValidationHistory.$inferSelect;
+export type DriftMetric = typeof driftMetrics.$inferSelect;
+export type AuditAccessLog = typeof auditAccessLog.$inferSelect;
+export type AuditExportLog = typeof auditExportLog.$inferSelect;
+export type ReplayMismatchAlert = typeof replayMismatchAlerts.$inferSelect;
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
