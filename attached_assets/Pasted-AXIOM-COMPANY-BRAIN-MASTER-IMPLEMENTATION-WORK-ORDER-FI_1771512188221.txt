@@ -1,0 +1,360 @@
+AXIOM — COMPANY BRAIN MASTER IMPLEMENTATION WORK ORDER  
+FINAL REFINED EDITION (PRECISION-LOCKED)  
+Agent Execution Protocol: MAX PRECISION MODE  
+
+Objective:  
+Lock Company Brain → Enforce Immutability → Harden Backend → Certify Deterministic Audit Integrity  
+
+No exploratory deviations. No schema drift. No partial implementations.
+
+------------------------------------------------------------
+MISSION STANDARD
+------------------------------------------------------------
+
+AXIOM must function as:
+
+• A centralized company memory  
+• A deterministic decision intelligence core  
+• A forensic audit system  
+• A governance-grade infrastructure layer  
+• A compliance-ready enterprise platform  
+
+All integrity artifacts must be generated at write-time and never mutated.
+
+------------------------------------------------------------
+PHASE V1 — COMPANY BRAIN CORE LOCK (FOUNDATION FIRST)
+------------------------------------------------------------
+
+Create and finalize all core tables with write-time integrity enforced.
+
+Decision
+- id (UUID, PK)
+- domain
+- subject_type
+- subject_id
+- triggered_by
+- model_version
+- confidence_score
+- alignment_score
+- alignment_score_version TEXT NOT NULL  (ex: "v1.0")
+- alignment_formula_version TEXT NOT NULL (ex: "v1.0-2026Q1")
+- alignment_score_computed_at TIMESTAMPTZ NOT NULL
+- outcome
+- status
+- created_at TIMESTAMPTZ NOT NULL
+- snapshot_hash TEXT NOT NULL
+- decision_hash TEXT NOT NULL
+- decision_fingerprint TEXT UNIQUE NOT NULL
+
+DecisionInputSnapshot
+- decision_id (FK)
+- input_json JSONB
+- hash TEXT NOT NULL
+- created_at TIMESTAMPTZ NOT NULL
+
+DecisionRuleHit
+- id
+- decision_id
+- rule_id
+- rule_version
+- severity
+- hit BOOLEAN
+- outcome
+- evaluated_at TIMESTAMPTZ NOT NULL
+
+PrinciplesApplied
+- id
+- decision_id
+- principle_id
+- principle_version
+- priority
+- applied BOOLEAN
+
+OverrideHistory
+- id
+- decision_id
+- overridden_by
+- role
+- previous_outcome
+- new_outcome
+- reason
+- created_at TIMESTAMPTZ NOT NULL
+
+AssumptionValidationHistory
+- id
+- decision_id
+- assumption_key
+- old_status
+- new_status
+- validated_by
+- validated_at TIMESTAMPTZ NOT NULL
+
+DriftMetrics
+- id
+- metric_name
+- baseline_value
+- current_value
+- computed_at TIMESTAMPTZ NOT NULL
+- decision_context
+
+------------------------------------------------------------
+WRITE-TIME INTEGRITY REQUIREMENTS (NON-NEGOTIABLE)
+------------------------------------------------------------
+
+All computed during INSERT only.
+
+decision_fingerprint =
+SHA256(
+  input_snapshot +
+  sorted(rule_hits) +
+  sorted(principles) +
+  outcome +
+  model_version +
+  timestamp
+)
+
+decision_hash =
+SHA256(
+  snapshot_hash +
+  sorted(rule_hits) +
+  sorted(principles) +
+  outcome +
+  timestamp
+)
+
+alignment_score =
+  (rule_hits * 15)
++ (avg_principle_priority * 0.6)
++ (no_override_bonus = +20 if none exist)
++ (validated_assumptions * 5)
+
+alignment_score must:
+• Be computed once  
+• Be stored permanently  
+• Never be recalculated historically  
+
+Store:
+• alignment_score  
+• alignment_score_version  
+• alignment_formula_version  
+• alignment_score_computed_at  
+
+------------------------------------------------------------
+PHASE V4 — IMMUTABILITY ENFORCEMENT (LOCK IMMEDIATELY)
+------------------------------------------------------------
+
+All audit-related tables must be:
+
+• INSERT ONLY  
+• No UPDATE allowed  
+• No DELETE allowed  
+• No soft deletes  
+
+Implement DB triggers blocking UPDATE/DELETE.
+
+Schema:
+audit_schema
+
+Role Separation:
+
+Write Role:
+• INSERT only  
+
+Read Role:
+• SELECT only  
+
+UTC Enforcement (DB-Level Preferred):
+
+All TIMESTAMPTZ columns must enforce UTC via constraint or application guard.
+
+Example DB constraint pattern:
+CHECK (created_at = timezone('UTC', created_at AT TIME ZONE 'UTC'))
+
+No mixed timezones permitted.
+
+------------------------------------------------------------
+PHASE V3 — SUPER AUDIT LAYER COMPLETION
+------------------------------------------------------------
+
+audit_access_log
+- id
+- user_id
+- decision_id
+- accessed_at TIMESTAMPTZ NOT NULL
+- ip_address
+
+audit_export_log
+- id
+- decision_id
+- export_type (PDF/JSON/CSV/BUNDLE)
+- export_purpose TEXT NOT NULL
+  (board_review | regulatory_audit | internal_investigation | etc.)
+- generated_by
+- generated_at TIMESTAMPTZ NOT NULL
+- bundle_hash TEXT NOT NULL
+- export_file_size INT
+
+Bundle Hash Strategy (Include Export Timestamp):
+
+bundle_hash =
+SHA256(
+  decision_data +
+  snapshot +
+  rules +
+  principles +
+  overrides +
+  assumptions +
+  export_timestamp
+)
+
+Purpose:
+Prevents hash disputes across regenerated exports.
+
+------------------------------------------------------------
+PHASE V5 — REPLAY ENGINE + INTEGRITY ALERTING
+------------------------------------------------------------
+
+Replay must:
+
+1) Load stored snapshot  
+2) Load rule versions used  
+3) Load principle versions used  
+4) Re-run evaluation engine deterministically  
+5) Compare outcome + alignment_score  
+
+If mismatch:
+
+Insert into:
+
+replay_mismatch_alerts
+- id
+- decision_id
+- replayed_outcome
+- historical_outcome
+- delta
+- severity (LOW | MEDIUM | CRITICAL)
+- replayed_at TIMESTAMPTZ NOT NULL
+
+Severity Logic:
+• LOW — minor alignment score variance  
+• MEDIUM — score + rule variance  
+• CRITICAL — outcome mismatch  
+
+CRITICAL must trigger immediate admin alert.
+
+------------------------------------------------------------
+PHASE V6 — PERFORMANCE HARDENING + SLAs
+------------------------------------------------------------
+
+Indexes Required:
+
+Decision:
+- id
+- created_at
+- domain
+
+DecisionRuleHit:
+- decision_id
+- rule_id
+
+PrinciplesApplied:
+- decision_id
+- principle_id
+
+OverrideHistory:
+- decision_id
+
+Performance SLAs:
+
+• Report generation < 2s (95th percentile)
+• Lineage query < 500ms
+• JSON export < 500ms
+• 100 concurrent reports without timeout
+
+Validate with:
+• pg_stat_statements
+• EXPLAIN ANALYZE
+
+------------------------------------------------------------
+PHASE V7 — SECURITY LOCKDOWN
+------------------------------------------------------------
+
+Mandatory Protections:
+
+• Strict input validation
+• No raw SQL string interpolation
+• Signed URLs for export downloads
+• Rate-limited export endpoints
+• Access logging for sensitive reads
+
+------------------------------------------------------------
+PHASE V8 — VALIDATION & PRODUCTION CERTIFICATION
+------------------------------------------------------------
+
+System is production-certified ONLY if:
+
+[ ] decision_fingerprint generated at insert  
+[ ] decision_hash generated at insert  
+[ ] alignment_score immutable + versioned  
+[ ] alignment_formula_version NOT NULL  
+[ ] snapshots stored at write-time  
+[ ] rule/principle versions captured  
+[ ] immutability triggers active  
+[ ] export_purpose required  
+[ ] bundle_hash includes export timestamp  
+[ ] export_file_size recorded  
+[ ] replay engine deterministic  
+[ ] mismatch severity classification active  
+[ ] CRITICAL mismatches alert immediately  
+[ ] UTC enforcement validated  
+[ ] performance SLAs met  
+[ ] Deterministic replay matches historical outcome for 100% of sampled decisions (test suite required)  
+
+------------------------------------------------------------
+EXECUTION ORDER (OPTIMIZED PRIORITY)
+------------------------------------------------------------
+
+1) V1 Core Lock + Write-Time Integrity
+   • All tables created
+   • Hashing + scoring at insert
+   • alignment_score + version fields enforced
+
+2) V4 Immutability Enforcement
+   • UPDATE/DELETE blocked
+   • Role separation active
+
+3) V3 Super Audit Completion
+   • access_log
+   • export_log
+   • bundle hashing
+   • export_purpose required
+
+4) V5 Replay Engine + Alerts
+   • Deterministic re-run
+   • replay_mismatch_alerts
+   • Severity + admin alerting
+
+5) V6 + V7 Hardening
+   • Indexes
+   • SLA validation
+   • Security protections
+
+6) V8 Certification
+   • Tamper testing
+   • Replay testing
+   • Export integrity validation
+   • Documented Production Certification Checklist
+
+------------------------------------------------------------
+END STATE
+------------------------------------------------------------
+
+When complete, AXIOM will operate as:
+
+• A tamper-resistant decision ledger  
+• A deterministic governance engine  
+• A replay-verifiable AI system  
+• A compliance-grade audit platform  
+• An enterprise-ready infrastructure backbone  
+
+This is the hardened foundation required before scaling pilots or pursuing enterprise expansion.
