@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -17,14 +17,28 @@ import AlertsPage from "@/pages/alerts";
 import BoardModePage from "@/pages/board";
 import NotFound from "@/pages/not-found";
 
-function AppLayout({ children }: { children: React.ReactNode }) {
-  const style = {
-    "--sidebar-width": "16rem",
-    "--sidebar-width-icon": "3rem",
-  };
+const sidebarStyle = {
+  "--sidebar-width": "16rem",
+  "--sidebar-width-icon": "3rem",
+} as React.CSSProperties;
 
+function AppRoutes() {
   return (
-    <SidebarProvider style={style as React.CSSProperties}>
+    <Switch>
+      <Route path="/dashboard" component={DashboardPage} />
+      <Route path="/decisions/new" component={DecisionNewPage} />
+      <Route path="/decisions/:id" component={DecisionDetailPage} />
+      <Route path="/decisions" component={DecisionsPage} />
+      <Route path="/alerts" component={AlertsPage} />
+      <Route path="/board" component={BoardModePage} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function AppLayout() {
+  return (
+    <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
@@ -33,7 +47,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto">
-            {children}
+            <AppRoutes />
           </main>
         </div>
       </div>
@@ -42,42 +56,14 @@ function AppLayout({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={LandingPage} />
-      <Route path="/dashboard">
-        <AppLayout>
-          <DashboardPage />
-        </AppLayout>
-      </Route>
-      <Route path="/decisions">
-        <AppLayout>
-          <DecisionsPage />
-        </AppLayout>
-      </Route>
-      <Route path="/decisions/new">
-        <AppLayout>
-          <DecisionNewPage />
-        </AppLayout>
-      </Route>
-      <Route path="/decisions/:id">
-        <AppLayout>
-          <DecisionDetailPage />
-        </AppLayout>
-      </Route>
-      <Route path="/alerts">
-        <AppLayout>
-          <AlertsPage />
-        </AppLayout>
-      </Route>
-      <Route path="/board">
-        <AppLayout>
-          <BoardModePage />
-        </AppLayout>
-      </Route>
-      <Route component={NotFound} />
-    </Switch>
-  );
+  const [location] = useLocation();
+  const isLanding = location === "/";
+
+  if (isLanding) {
+    return <LandingPage />;
+  }
+
+  return <AppLayout />;
 }
 
 function App() {

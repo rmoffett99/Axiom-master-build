@@ -10,6 +10,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { 
   LayoutDashboard, 
@@ -18,7 +19,6 @@ import {
   Eye,
   Plus,
   Settings,
-  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -48,6 +48,13 @@ const mainNavItems = [
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   return (
     <Sidebar>
@@ -67,7 +74,7 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <div className="px-3 mb-2">
-            <Link href="/decisions/new">
+            <Link href="/decisions/new" onClick={handleNavClick}>
               <Button className="w-full justify-start gap-2" size="sm" data-testid="button-new-decision">
                 <Plus className="w-4 h-4" />
                 New Decision
@@ -85,7 +92,11 @@ export function AppSidebar() {
                     asChild 
                     isActive={location === item.url || (item.url !== "/dashboard" && location.startsWith(item.url))}
                   >
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(" ", "-")}`}>
+                    <Link 
+                      href={item.url} 
+                      onClick={handleNavClick}
+                      data-testid={`link-${item.title.toLowerCase().replace(" ", "-")}`}
+                    >
                       <item.icon className="w-4 h-4" />
                       <span>{item.title}</span>
                     </Link>
