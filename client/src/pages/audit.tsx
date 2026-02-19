@@ -31,7 +31,13 @@ import {
   Download,
   Lock,
   ChevronLeft,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useState, useMemo, useRef } from "react";
 import { getCurrentOrgId } from "@/lib/org-state";
 
@@ -104,14 +110,26 @@ function DetailPanel({ event, onClose }: { event: AuditEvent; onClose: () => voi
             <ChevronLeft className="w-4 h-4" />
           </Button>
           <h2 className="font-semibold truncate">Audit Event Detail</h2>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-4 h-4 text-muted-foreground cursor-help flex-shrink-0" data-testid="icon-detail-info" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+              <p className="font-medium mb-1">What am I looking at?</p>
+              <p>This is the system's original write-time record. It shows exactly what the system knew and recorded when the action occurred. Nothing here is reconstructed, edited, or rewritten later.</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
         <ActionBadge action={event.action} />
       </div>
 
-      <div className="flex-1 overflow-auto p-4 space-y-4">
-        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 text-sm text-muted-foreground">
-          <Lock className="w-4 h-4 flex-shrink-0" />
-          <span>Audit records are immutable and append-only.</span>
+      <div className="flex-1 overflow-auto p-4 space-y-5">
+        <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50">
+          <Lock className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+          <div>
+            <Badge variant="secondary" className="text-xs mb-1" data-testid="badge-append-only">Append-Only Record</Badge>
+            <p className="text-xs text-muted-foreground">This entry is permanently stored and cannot be changed or deleted.</p>
+          </div>
         </div>
 
         <div className="space-y-3">
@@ -122,7 +140,7 @@ function DetailPanel({ event, onClose }: { event: AuditEvent; onClose: () => voi
           <DetailRow label="Resource Type" value={event.resourceType} />
           <DetailRow label="Resource ID" value={event.resourceId} mono />
           <DetailRow label="Status" value={event.status} />
-          <DetailRow label="Source Table" value={event.source} />
+          <DetailRow label="Source Module" value={event.source} />
           {"organizationId" in event.metadata && event.metadata.organizationId ? (
             <DetailRow label="Organization ID" value={String(event.metadata.organizationId)} mono />
           ) : null}
@@ -149,17 +167,34 @@ function DetailPanel({ event, onClose }: { event: AuditEvent; onClose: () => voi
           ) : null}
           {"summary" in event.metadata && event.metadata.summary ? (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Summary</p>
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">Human Summary</p>
               <p className="text-sm">{String(event.metadata.summary)}</p>
+              <p className="text-xs text-muted-foreground mt-1">A readable explanation generated directly from the immutable record below.</p>
             </div>
           ) : null}
         </div>
 
-        <div>
-          <p className="text-xs text-muted-foreground mb-2">Full Metadata</p>
-          <pre className="text-xs p-3 rounded-md bg-muted/50 overflow-auto max-h-64 whitespace-pre-wrap break-all font-mono" data-testid="text-audit-metadata">
-            {JSON.stringify(event.metadata, null, 2)}
-          </pre>
+        <div className="space-y-3 pt-2 border-t">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Shield className="w-4 h-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold">Immutable Evidence Snapshot</h3>
+            </div>
+            <p className="text-xs text-muted-foreground">Captured automatically at the exact moment this action occurred. This record is append-only and cannot be modified.</p>
+          </div>
+
+          <div>
+            <h4 className="text-xs font-medium mb-1">Original System Record (Read-Only)</h4>
+            <p className="text-xs text-muted-foreground mb-3">Shown for audit, compliance, and verification purposes. This data is stored immutably to prove integrity.</p>
+          </div>
+
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Technical Evidence (for verification)</p>
+            <p className="text-xs text-muted-foreground mb-2">Structured data preserved for auditors, regulators, and security reviews.</p>
+            <pre className="text-xs p-3 rounded-md bg-muted/50 overflow-auto max-h-64 whitespace-pre-wrap break-all font-mono" data-testid="text-audit-metadata">
+              {JSON.stringify(event.metadata, null, 2)}
+            </pre>
+          </div>
         </div>
       </div>
     </div>

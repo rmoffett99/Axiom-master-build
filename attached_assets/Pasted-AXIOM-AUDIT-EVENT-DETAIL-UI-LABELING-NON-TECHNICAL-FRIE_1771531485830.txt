@@ -1,0 +1,97 @@
+AXIOM — AUDIT EVENT DETAIL UI LABELING (NON-TECHNICAL FRIENDLY)
+
+GOAL:
+Make the Audit Event Detail understandable and confidence-building for
+non-technical buyers (GCs, compliance, execs) WITHOUT removing evidence.
+
+DO NOT remove or hide metadata.
+DO NOT weaken immutability proof.
+This is a labeling and framing change only.
+
+============================================================
+SECTION LABEL UPDATES
+============================================================
+
+REPLACE:
+"Full Metadata"
+
+WITH:
+"Immutable Evidence Snapshot"
+
+SUBTEXT (directly below):
+"Captured automatically at the exact moment this action occurred.
+This record is append-only and cannot be modified."
+
+============================================================
+INFO TOOLTIP / HELP TEXT (ⓘ ICON)
+============================================================
+
+LABEL:
+"What am I looking at?"
+
+TEXT:
+"This is the system’s original write-time record.
+It shows exactly what the system knew and recorded when the action occurred.
+Nothing here is reconstructed, edited, or rewritten later."
+
+============================================================
+METADATA BLOCK INTRO (ABOVE JSON)
+============================================================
+
+HEADER:
+"Original System Record (Read-Only)"
+
+SUBTEXT:
+"Shown for audit, compliance, and verification purposes.
+This data is stored immutably to prove integrity."
+
+============================================================
+JSON BLOCK LABELING
+============================================================
+
+SMALL LABEL ABOVE JSON:
+"Technical Evidence (for verification)"
+
+HELPER TEXT:
+"Structured data preserved for auditors, regulators, and security reviews."
+
+============================================================
+IMMUTABILITY INDICATOR (IF PRESENT)
+============================================================
+
+BADGE TEXT:
+"Append-Only Record"
+
+HELPER TEXT:
+"This entry is permanently stored and cannot be changed or deleted."
+
+============================================================
+OPTIONAL SUMMARY FRAMING (IF SHOWN)
+============================================================
+
+LABEL:
+"Human Summary"
+
+HELPER TEXT:
+"A readable explanation generated directly from the immutable record below."
+
+============================================================
+NON-GOALS (DO NOT DO)
+============================================================
+
+- Do NOT remove metadata
+- Do NOT rename metadata to 'debug'
+- Do NOT auto-hide metadata for audit users
+- Do NOT allow edits or mutations
+
+============================================================
+SUCCESS CRITERIA
+============================================================
+
+A non-technical reviewer should immediately understand:
+- why this data exists
+- that it is evidence, not logs
+- that it cannot be altered
+- that it proves write-time integrity
+
+END
