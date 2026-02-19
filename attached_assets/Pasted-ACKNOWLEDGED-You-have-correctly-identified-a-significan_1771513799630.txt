@@ -1,0 +1,174 @@
+ACKNOWLEDGED.
+
+You have correctly identified a significant implementation gap.
+Now switch from analysis to execution.
+
+Follow this EXACT execution plan. No deviations.
+
+------------------------------------------------------------
+MODE CHANGE
+------------------------------------------------------------
+
+You are no longer documenting or planning.
+You are now executing remediation against the Master Work Order.
+
+Deliverables must be:
+- Concrete schema changes
+- Concrete migrations
+- Concrete write-time logic
+- Concrete triggers
+- Concrete tables
+
+No summaries. No restating the plan.
+
+------------------------------------------------------------
+STEP 1 — FREEZE CURRENT STATE
+------------------------------------------------------------
+
+Before making changes:
+
+1) List ALL existing decision-related tables and fields
+2) Confirm which fields currently live in the wrong tables
+   (ex: confidence_score in decisionReasoning)
+3) Confirm there are NO write-time hashes, fingerprints, or alignment scoring
+
+Then proceed immediately to remediation.
+
+------------------------------------------------------------
+STEP 2 — SCHEMA REMEDIATION (V1 CORE LOCK)
+------------------------------------------------------------
+
+Implement the following tables EXACTLY as specified:
+
+Decision
+- Add missing fields:
+  • domain
+  • triggered_by
+  • model_version
+  • confidence_score
+  • alignment_score
+  • alignment_score_version (TEXT NOT NULL)
+  • alignment_formula_version (TEXT NOT NULL)
+  • alignment_score_computed_at (TIMESTAMPTZ NOT NULL)
+  • outcome
+  • status
+  • snapshot_hash (TEXT NOT NULL)
+  • decision_hash (TEXT NOT NULL)
+  • decision_fingerprint (TEXT UNIQUE NOT NULL)
+
+DecisionInputSnapshot
+PrinciplesApplied
+OverrideHistory
+AssumptionValidationHistory
+DriftMetrics
+
+Remediate DecisionRuleHit:
+- Add rule_version
+- Add severity
+- Add outcome
+- Add evaluated_at TIMESTAMPTZ
+
+All timestamps MUST be TIMESTAMPTZ.
+
+------------------------------------------------------------
+STEP 3 — WRITE-TIME INTEGRITY IMPLEMENTATION
+------------------------------------------------------------
+
+At decision creation:
+
+1) Persist DecisionInputSnapshot
+2) Compute snapshot_hash
+3) Compute decision_hash
+4) Compute decision_fingerprint
+5) Compute alignment_score
+6) Persist alignment_score_version + alignment_formula_version
+7) Persist alignment_score_computed_at
+
+These values must NEVER be recomputed later.
+
+------------------------------------------------------------
+STEP 4 — IMMUTABILITY ENFORCEMENT (DB LEVEL)
+------------------------------------------------------------
+
+Implement database triggers to BLOCK:
+- UPDATE on all audit-related tables
+- DELETE on all audit-related tables
+
+Tables must be INSERT-ONLY.
+
+If triggers are not possible, explain why and provide an alternative
+that achieves the same immutability guarantee.
+
+------------------------------------------------------------
+STEP 5 — SUPER AUDIT LAYER
+------------------------------------------------------------
+
+Create:
+- audit_access_log
+- audit_export_log
+
+audit_export_log MUST include:
+- export_type
+- export_purpose (REQUIRED)
+- bundle_hash
+- export_file_size
+- generated_at (UTC)
+
+Bundle hash MUST include export timestamp.
+
+------------------------------------------------------------
+STEP 6 — REPLAY ENGINE
+------------------------------------------------------------
+
+Implement deterministic replay:
+
+1) Load stored snapshot
+2) Load rule versions used
+3) Load principle versions used
+4) Re-run evaluation
+5) Compare outcome + alignment_score
+
+If mismatch:
+Insert into replay_mismatch_alerts with:
+- severity (LOW | MEDIUM | CRITICAL)
+
+CRITICAL mismatches must trigger admin alert.
+
+------------------------------------------------------------
+STEP 7 — UTC ENFORCEMENT
+------------------------------------------------------------
+
+Ensure ALL timestamps are stored in UTC.
+
+Implement:
+- DB CHECK constraint OR
+- App-level enforcement + tests
+
+No mixed timezone behavior allowed.
+
+------------------------------------------------------------
+STEP 8 — PERFORMANCE & SECURITY
+------------------------------------------------------------
+
+Add required indexes.
+Add rate limits to export endpoints.
+Use signed URLs for export downloads.
+Enable access logging.
+
+------------------------------------------------------------
+FINAL OUTPUT REQUIRED
+------------------------------------------------------------
+
+When finished, return:
+
+1) List of tables created or modified
+2) List of triggers added
+3) Confirmation that:
+   - Decisions are immutable
+   - Hashes are write-time only
+   - Replay is deterministic
+   - Audit exports are logged and defensible
+
+Do NOT proceed to new features or UI.
+
+Execution is complete ONLY when all remediation steps are implemented.
