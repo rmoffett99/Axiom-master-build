@@ -1,8 +1,10 @@
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useOrgLink } from "@/lib/use-org-link";
 
 export default function LandingPage() {
+  const orgLink = useOrgLink();
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Navigation */}
@@ -15,7 +17,7 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
-              <Link href="/dashboard">
+              <Link href={orgLink("/dashboard")}>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -25,7 +27,7 @@ export default function LandingPage() {
                   Enter
                 </Button>
               </Link>
-              <Link href="/dashboard">
+              <Link href={orgLink("/dashboard")}>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -60,7 +62,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
-            <Link href="/dashboard">
+            <Link href={orgLink("/dashboard")}>
               <Button 
                 size="lg" 
                 className="bg-zinc-100 text-zinc-900 border-zinc-100 text-base font-medium px-8"
@@ -69,7 +71,7 @@ export default function LandingPage() {
                 Enter Platform
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href={orgLink("/dashboard")}>
               <Button 
                 size="lg" 
                 variant="ghost" 

@@ -56,11 +56,39 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
+
+  async function resolveOrgId(req: any): Promise<string> {
+    const orgId = req.query.orgId || req.headers['x-organization-id'];
+    if (orgId && typeof orgId === 'string') return orgId;
+    const orgs = await storage.getOrganizations();
+    return orgs[0]?.id || '';
+  }
+
+  // Organizations
+  app.get("/api/organizations", async (req, res) => {
+    try {
+      const orgs = await storage.getOrganizations();
+      res.json(orgs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organizations" });
+    }
+  });
+
+  app.get("/api/organizations/:slug", async (req, res) => {
+    try {
+      const org = await storage.getOrganizationBySlug(req.params.slug);
+      if (!org) return res.status(404).json({ error: "Organization not found" });
+      res.json(org);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch organization" });
+    }
+  });
+
   // Users
   app.get("/api/users", async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
+      const orgId = await resolveOrgId(req);
+      const users = await storage.getAllUsers(orgId);
       res.json(users);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -71,7 +99,8 @@ export async function registerRoutes(
   // Teams
   app.get("/api/teams", async (req, res) => {
     try {
-      const teams = await storage.getAllTeams();
+      const orgId = await resolveOrgId(req);
+      const teams = await storage.getAllTeams(orgId);
       res.json(teams);
     } catch (error) {
       console.error("Error fetching teams:", error);
@@ -82,7 +111,8 @@ export async function registerRoutes(
   // Dashboard
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const orgId = await resolveOrgId(req);
+      const stats = await storage.getDashboardStats(orgId);
       res.json(stats);
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
@@ -93,7 +123,8 @@ export async function registerRoutes(
   // Decisions
   app.get("/api/decisions", async (req, res) => {
     try {
-      const decisions = await storage.getAllDecisions();
+      const orgId = await resolveOrgId(req);
+      const decisions = await storage.getAllDecisions(orgId);
       res.json(decisions);
     } catch (error) {
       console.error("Error fetching decisions:", error);
@@ -116,7 +147,6 @@ export async function registerRoutes(
 
   app.post("/api/decisions", async (req, res) => {
     try {
-      // Validate request body with Zod schema
       const parseResult = createDecisionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -132,7 +162,10 @@ export async function registerRoutes(
         return res.status(400).json({ error: "At least 3 valid assumptions are required" });
       }
 
+      const orgId = await resolveOrgId(req);
+
       const decision = await storage.createDecision(
+        orgId,
         {
           title,
           ownerId,
@@ -156,10 +189,10 @@ export async function registerRoutes(
         }))
       );
 
-      // Calculate initial debt score
       await storage.updateDecisionDebtScore(decision.id, calculateDebtScore(validAssumptions.length, 0));
 
       logDecision({
+        organizationId: orgId,
         decisionType: "create_decision",
         sourceModule: "decisions",
         subjectType: "decision",
@@ -180,7 +213,6 @@ export async function registerRoutes(
 
   app.post("/api/decisions/:id/amend", async (req, res) => {
     try {
-      // Validate request body with Zod schema
       const parseResult = amendDecisionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -196,7 +228,6 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Decision not found" });
       }
 
-      // Append-only: Create new version instead of modifying existing
       const version = await storage.amendDecision(req.params.id, {
         title: title || decision.title,
         context,
@@ -207,7 +238,10 @@ export async function registerRoutes(
         authorId,
       });
 
+      const orgId = await resolveOrgId(req);
+
       logDecision({
+        organizationId: orgId,
         decisionType: "amend_decision",
         sourceModule: "decisions",
         subjectType: "decision",
@@ -229,7 +263,6 @@ export async function registerRoutes(
   // Assumptions
   app.patch("/api/assumptions/:id", async (req, res) => {
     try {
-      // Validate request body with Zod schema
       const parseResult = updateAssumptionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -240,8 +273,8 @@ export async function registerRoutes(
 
       const { status } = parseResult.data;
       
-      // Use first user as the validator (in production, get from session)
-      const users = await storage.getAllUsers();
+      const orgId = await resolveOrgId(req);
+      const users = await storage.getAllUsers(orgId);
       const validatorId = users[0]?.id;
 
       if (!validatorId) {
@@ -250,12 +283,12 @@ export async function registerRoutes(
 
       const assumption = await storage.updateAssumptionStatus(req.params.id, status, validatorId);
 
-      // If assumption was invalidated, create an alert
       if (status === "invalidated") {
         const existingAssumption = await storage.getAssumption(req.params.id);
         if (existingAssumption) {
           const newAlert = await storage.createAlert({
             decisionId: existingAssumption.decisionId,
+            organizationId: existingAssumption.organizationId,
             type: "assumption_expired",
             severity: "high",
             message: `Assumption invalidated: ${existingAssumption.description.substring(0, 100)}`,
@@ -263,6 +296,7 @@ export async function registerRoutes(
           });
 
           logDecision({
+            organizationId: orgId,
             decisionType: "create_alert",
             sourceModule: "alerts",
             subjectType: "alert",
@@ -279,6 +313,7 @@ export async function registerRoutes(
       const updatedAssumption = await storage.getAssumption(req.params.id);
       if (updatedAssumption) {
         logDecision({
+          organizationId: orgId,
           decisionType: "assumption_change",
           sourceModule: "assumptions",
           subjectType: "assumption",
@@ -301,7 +336,8 @@ export async function registerRoutes(
   // Alerts
   app.get("/api/alerts", async (req, res) => {
     try {
-      const alerts = await storage.getAllAlerts();
+      const orgId = await resolveOrgId(req);
+      const alerts = await storage.getAllAlerts(orgId);
       res.json(alerts);
     } catch (error) {
       console.error("Error fetching alerts:", error);
@@ -311,8 +347,8 @@ export async function registerRoutes(
 
   app.post("/api/alerts/:id/acknowledge", async (req, res) => {
     try {
-      // Use first user as acknowledger (in production, get from session)
-      const users = await storage.getAllUsers();
+      const orgId = await resolveOrgId(req);
+      const users = await storage.getAllUsers(orgId);
       const userId = users[0]?.id;
 
       if (!userId) {
@@ -322,6 +358,7 @@ export async function registerRoutes(
       const alert = await storage.acknowledgeAlert(req.params.id, userId);
 
       logDecision({
+        organizationId: orgId,
         decisionType: "acknowledge_alert",
         sourceModule: "alerts",
         subjectType: "alert",
@@ -341,7 +378,6 @@ export async function registerRoutes(
   });
 
   // ===== Company Brain V3: Action Proposals & Approvals =====
-  // Backend-only endpoints. No UI. Full audit trail.
 
   app.get("/api/brain/proposals", async (req, res) => {
     try {

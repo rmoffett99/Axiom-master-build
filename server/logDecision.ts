@@ -22,7 +22,7 @@ import {
 import { proposeActionsForRuleHits } from "./actionProposals";
 
 type LogDecisionInput = {
-  orgId?: string | null;
+  organizationId?: string | null;
   decisionType: string;
   sourceModule: string;
   subjectType: string;
@@ -38,7 +38,7 @@ type LogDecisionInput = {
 export async function logDecision(input: LogDecisionInput): Promise<string | null> {
   try {
     const {
-      orgId = null,
+      organizationId = null,
       decisionType,
       sourceModule,
       subjectType,
@@ -54,7 +54,7 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     const [decision] = await db
       .insert(decisionLog)
       .values({
-        orgId,
+        organizationId,
         decisionType,
         sourceModule,
         subjectType,
@@ -118,7 +118,7 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     const ruleHitInserts: { ruleId: string; ruleVersion: string; severity: string; hit: boolean; outcome: string; hitDetails: Record<string, unknown>; evaluatedAt: Date }[] = [];
     try {
       const rFilters: SQL[] = [eq(rule.domain, domain), eq(rule.isActive, true)];
-      if (orgId) rFilters.push(eq(rule.orgId, orgId));
+      if (organizationId) rFilters.push(eq(rule.organizationId, organizationId));
       const activeRules = await db.select().from(rule).where(and(...rFilters));
 
       for (const r of activeRules) {
@@ -251,7 +251,7 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     if (ruleHitRecords.some((r) => r.hit) && brainRecord?.id) {
       proposeActionsForRuleHits({
         decisionId: brainRecord.id,
-        orgId,
+        organizationId,
         domain,
         metadata,
       }).catch(() => {});

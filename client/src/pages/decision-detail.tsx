@@ -24,6 +24,7 @@ import {
   History,
   Bell
 } from "lucide-react";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { 
   DecisionWithDetails, 
   DecisionVersion, 
@@ -211,7 +212,8 @@ function AlertItem({ alert, onAcknowledge }: { alert: Alert; onAcknowledge: (id:
 }
 
 export default function DecisionDetailPage() {
-  const [, params] = useRoute("/decisions/:id");
+  const orgLink = useOrgLink();
+  const [, params] = useRoute("/org/:orgSlug/decisions/:id");
   const { toast } = useToast();
 
   const { data: decision, isLoading } = useQuery<DecisionWithDetails & {
@@ -261,7 +263,7 @@ export default function DecisionDetailPage() {
           <FileText className="w-16 h-16 text-muted-foreground mb-4" />
           <h2 className="text-xl font-semibold mb-2">Decision Not Found</h2>
           <p className="text-muted-foreground mb-4">The decision you're looking for doesn't exist.</p>
-          <Link href="/decisions">
+          <Link href={orgLink("/decisions")}>
             <Button>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Decisions
@@ -283,7 +285,7 @@ export default function DecisionDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-4">
-          <Link href="/decisions">
+          <Link href={orgLink("/decisions")}>
             <Button variant="ghost" size="icon" data-testid="button-back">
               <ArrowLeft className="w-4 h-4" />
             </Button>

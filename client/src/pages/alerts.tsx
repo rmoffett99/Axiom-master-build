@@ -25,6 +25,7 @@ import {
   ChevronRight,
   User
 } from "lucide-react";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { Alert, Decision } from "@shared/schema";
 
 interface AlertWithDecision extends Alert {
@@ -60,6 +61,7 @@ function TypeBadge({ type }: { type: string }) {
 }
 
 function AlertCard({ alert, onAcknowledge }: { alert: AlertWithDecision; onAcknowledge: (id: string) => void }) {
+  const orgLink = useOrgLink();
   const severityColors: Record<string, string> = {
     critical: "border-l-destructive",
     high: "border-l-chart-2",
@@ -99,7 +101,7 @@ function AlertCard({ alert, onAcknowledge }: { alert: AlertWithDecision; onAckno
             <p className="text-sm font-medium mb-2">{alert.message}</p>
             
             {alert.decision && (
-              <Link href={`/decisions/${alert.decision.id}`}>
+              <Link href={orgLink(`/decisions/${alert.decision.id}`)}>
                 <div className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer">
                   <FileText className="w-3 h-3" />
                   {alert.decision.title}

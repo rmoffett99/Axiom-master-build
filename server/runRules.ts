@@ -5,17 +5,17 @@ import { proposeActionsForRuleHits } from "./actionProposals";
 
 type RunRulesInput = {
   decisionId: string;
-  orgId?: string | null;
+  organizationId?: string | null;
   domain: string;
   metadata: Record<string, unknown>;
 };
 
 export async function runRules(input: RunRulesInput): Promise<void> {
   try {
-    const { decisionId, orgId = null, domain, metadata } = input;
+    const { decisionId, organizationId = null, domain, metadata } = input;
 
     const filters: SQL[] = [eq(rule.domain, domain), eq(rule.isActive, true)];
-    if (orgId) filters.push(eq(rule.orgId, orgId));
+    if (organizationId) filters.push(eq(rule.organizationId, organizationId));
 
     const activeRules = await db
       .select()
@@ -48,7 +48,7 @@ export async function runRules(input: RunRulesInput): Promise<void> {
       });
     }
 
-    proposeActionsForRuleHits({ decisionId, orgId, domain, metadata }).catch(() => {});
+    proposeActionsForRuleHits({ decisionId, organizationId, domain, metadata }).catch(() => {});
   } catch {
     // fail silently
   }

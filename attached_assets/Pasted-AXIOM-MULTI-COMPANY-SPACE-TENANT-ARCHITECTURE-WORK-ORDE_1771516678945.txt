@@ -1,0 +1,198 @@
+AXIOM — MULTI-COMPANY SPACE (TENANT) ARCHITECTURE WORK ORDER
+Objective:
+Ensure AXIOM supports multiple companies (organizations) with strict data isolation,
+correct routing, correct UI behavior, and zero cross-tenant leakage.
+
+This is NOT optional. This is core enterprise readiness.
+
+============================================================
+PART A — CONCEPTUAL MODEL (NO DEVIATION)
+============================================================
+
+AXIOM is MULTI-TENANT.
+
+Definitions:
+- Organization (Org / Company): A logical tenant boundary.
+- Space: The active organization context a user is operating within.
+- User may belong to multiple organizations.
+- ALL decisions, audits, rules, principles, and reports MUST be scoped to an organization.
+
+NO global/shared data unless explicitly marked system-level.
+
+============================================================
+PART B — REQUIRED CORE TABLES
+============================================================
+
+Organization
+- id (UUID, PK)
+- name
+- slug (UNIQUE)
+- status (active | suspended)
+- created_at (TIMESTAMPTZ, UTC)
+
+UserOrganization
+- id
+- user_id
+- organization_id
+- role (owner | admin | reviewer | viewer)
+- created_at (TIMESTAMPTZ, UTC)
+
+------------------------------------------------------------
+MANDATORY RULE:
+Every business object MUST reference organization_id.
+------------------------------------------------------------
+
+============================================================
+PART C — ORGANIZATION SCOPING (DATABASE LEVEL)
+============================================================
+
+Add organization_id (UUID, NOT NULL) to ALL of the following:
+
+Decision
+DecisionInputSnapshot
+DecisionRuleHit
+PrinciplesApplied
+OverrideHistory
+AssumptionValidationHistory
+DriftMetrics
+audit_access_log
+audit_export_log
+replay_mismatch_alerts
+(any future audit or decision table)
+
+Add FK constraint:
+organization_id → Organization.id
+
+Add composite indexes:
+- (organization_id, decision_id)
+- (organization_id, created_at)
+- (organization_id, domain)
+
+============================================================
+PART D — WRITE-TIME ENFORCEMENT (CRITICAL)
+============================================================
+
+At decision creation:
+- organization_id MUST be explicitly passed
+- organization_id MUST be derived from authenticated user context
+- NEVER trust client-provided org_id blindly
+
+Hard rule:
+If organization_id is missing or mismatched → reject write.
+
+============================================================
+PART E — QUERY-TIME ISOLATION (NON-NEGOTIABLE)
+============================================================
+
+ALL reads MUST be scoped by organization_id.
+
+Examples (pseudo):
+
+SELECT * FROM Decision
+WHERE organization_id = :activeOrgId
+AND id = :decisionId;
+
+No query may omit organization_id.
+
+Add safeguards:
+- Shared query helpers that REQUIRE orgId
+- Lint or code review rule forbidding unscoped queries
+
+============================================================
+PART F — AUTH CONTEXT & ACTIVE SPACE
+============================================================
+
+Authentication context MUST include:
+- user_id
+- active_organization_id
+- role in that organization
+
+Behavior:
+- User selects active organization (“space”) at login or via switcher
+- active_organization_id stored in session/JWT
+- All API calls infer org from auth context
+
+DO NOT:
+- store active org only in frontend state
+- allow cross-org access via URL guessing
+
+============================================================
+PART G — UI ROUTING & SPACE SWITCHING
+============================================================
+
+Routing pattern (example):
+/org/:orgSlug/dashboard
+/org/:orgSlug/decisions
+/org/:orgSlug/audit/:decisionId
+
+Rules:
+- Route change MUST occur on first click
+- Switching org triggers:
+  1) route change
+  2) state reset
+  3) refetch scoped data
+
+If sidebar/menu exists:
+- Navigation + menu close must occur in same click
+- No double-click behavior allowed
+
+============================================================
+PART H — SPACE SWITCHER REQUIREMENTS
+============================================================
+
+Space switcher must:
+- List only orgs user belongs to
+- On select:
+  - Update active_organization_id (server-side)
+  - Redirect immediately
+  - Invalidate cached queries
+- Never leak previous org data during transition
+
+============================================================
+PART I — AUDIT & EXPORT SCOPING
+============================================================
+
+audit_access_log:
+- MUST include organization_id
+
+audit_export_log:
+- MUST include organization_id
+- Export bundle must contain data from ONLY that organization
+
+Cross-org exports are strictly forbidden.
+
+============================================================
+PART J — TESTS (REQUIRED)
+============================================================
+
+Automated tests MUST cover:
+
+1) User with access to Org A cannot:
+   - read Org B decisions
+   - export Org B audit data
+   - replay Org B decisions
+
+2) Space switching:
+   - Data updates immediately
+   - URL updates on first click
+   - No stale data visible
+
+3) Write protection:
+   - Attempt to write decision with wrong org_id fails
+
+============================================================
+FINAL OUTPUT REQUIRED
+============================================================
+
+Return:
+1) Confirmation organization_id is present on ALL tables
+2) Proof queries are scoped
+3) Proof writes are enforced
+4) Proof UI routes change on first click
+5) Tests demonstrating tenant isolation
+
+NO FEATURE WORK.
+NO UI REDESIGN.
+NO GLOBAL DATA LEAKAGE.
+
+This task is COMPLETE only when multi-company isolation is airtight.

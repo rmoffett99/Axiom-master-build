@@ -37,6 +37,7 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { User, Team } from "@shared/schema";
 
 const decisionFormSchema = z.object({
@@ -65,6 +66,7 @@ const steps = [
 ];
 
 export default function DecisionNewPage() {
+  const orgLink = useOrgLink();
   const [currentStep, setCurrentStep] = useState(1);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -110,7 +112,7 @@ export default function DecisionNewPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/decisions"] });
       toast({ title: "Decision created", description: "Your decision has been recorded." });
-      navigate(`/decisions/${data.id}`);
+      navigate(orgLink(`/decisions/${data.id}`));
     },
     onError: () => {
       toast({ 
@@ -146,7 +148,7 @@ export default function DecisionNewPage() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     } else {
-      navigate("/decisions");
+      navigate(orgLink("/decisions"));
     }
   };
 

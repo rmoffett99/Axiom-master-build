@@ -1,4 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { getCurrentOrgId } from "./org-state";
+
+function getOrgHeaders(): Record<string, string> {
+  const orgId = getCurrentOrgId();
+  if (orgId) {
+    return { "X-Organization-Id": orgId };
+  }
+  return {};
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -12,9 +21,16 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    ...getOrgHeaders(),
+  };
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -31,6 +47,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: getOrgHeaders(),
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

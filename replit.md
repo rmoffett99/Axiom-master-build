@@ -122,6 +122,22 @@ npm run db:push  # Push schema changes
 - Status: Planning document only — not implemented, no current app changes
 
 ## Recent Changes
+- 2026-02-19: Multi-Tenancy Implementation — Organization-Scoped Data Isolation
+  - New tables: organizations (id, name, slug, status), user_organizations (user_id, organization_id, role)
+  - Added nullable organization_id column to 28+ tables (users, teams, decisions, alerts, brain_decision, audit tables, etc.)
+  - Renamed legacy org_id columns to organization_id for consistency (decision_log, principle, rule, action, automation_settings)
+  - Database migration: dropped immutability triggers, added columns, created default orgs (axiom-demo, acme-corp), backfilled existing data, re-created 30 triggers
+  - 12 new composite indexes for org-scoped queries (decisions, alerts, brain_decision, audit logs)
+  - Backend: All storage queries (getAllDecisions, getAllUsers, getAllTeams, getAllAlerts, getDashboardStats) now accept and filter by organizationId
+  - Backend: resolveOrgId helper extracts org from X-Organization-Id header or ?orgId query param, defaults to first org
+  - Backend: New routes GET /api/organizations, GET /api/organizations/:slug
+  - Frontend: OrgProvider context manages active org state, auto-redirects bare paths (e.g. /dashboard → /org/axiom-demo/dashboard)
+  - Frontend: All routes now use /org/:orgSlug/* pattern (e.g. /org/axiom-demo/decisions)
+  - Frontend: Space switcher dropdown in sidebar header (org-switcher button with dropdown menu)
+  - Frontend: All page links use useOrgLink hook for org-aware path generation
+  - Frontend: queryClient injects X-Organization-Id header on all API requests automatically
+  - Tenant isolation verified: Axiom Demo org sees 8 decisions, Acme Corp org sees 0
+  - E2E tested: navigation, org switching, data isolation all working
 - 2026-02-19: Company Brain V1-V8 Master Work Order — Full Enterprise Implementation
   - V1 Core Lock: brain_decision table with 17 fields (domain, subject_type, triggered_by, model_version, confidence_score, alignment_score + version/formula/computed_at, outcome, status, snapshot_hash, decision_hash, decision_fingerprint UNIQUE)
   - V1 Satellite tables: decision_input_snapshot, principles_applied, override_history, assumption_validation_history, drift_metrics

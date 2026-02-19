@@ -10,9 +10,28 @@ export const assumptionStatusEnum = pgEnum("assumption_status", ["valid", "expir
 export const alertSeverityEnum = pgEnum("alert_severity", ["critical", "high", "medium", "low"]);
 export const alertTypeEnum = pgEnum("alert_type", ["assumption_expired", "owner_departed", "review_overdue", "contradiction_detected", "high_debt_score"]);
 
+// Organizations (tenants)
+export const organizations = pgTable("organizations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  status: text("status").notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// User-Organization membership
+export const userOrganizations = pgTable("user_organizations", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: varchar("user_id", { length: 36 }).notNull(),
+  organizationId: uuid("organization_id").notNull(),
+  role: text("role").notNull().default("viewer"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 // Users
 export const users = pgTable("users", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   username: text("username").notNull().unique(),
   email: text("email").notNull().unique(),
   displayName: text("display_name").notNull(),
@@ -25,6 +44,7 @@ export const users = pgTable("users", {
 // Teams
 export const teams = pgTable("teams", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   name: text("name").notNull(),
   description: text("description"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -33,6 +53,7 @@ export const teams = pgTable("teams", {
 // Team Members junction
 export const teamMembers = pgTable("team_members", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   teamId: varchar("team_id", { length: 36 }).notNull().references(() => teams.id),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
   joinedAt: timestamp("joined_at").notNull().defaultNow(),
@@ -41,6 +62,7 @@ export const teamMembers = pgTable("team_members", {
 // Decisions (main record)
 export const decisions = pgTable("decisions", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   title: text("title").notNull(),
   ownerId: varchar("owner_id", { length: 36 }).notNull().references(() => users.id),
   teamId: varchar("team_id", { length: 36 }).references(() => teams.id),
@@ -55,6 +77,7 @@ export const decisions = pgTable("decisions", {
 // Decision Versions (append-only)
 export const decisionVersions = pgTable("decision_versions", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   versionNumber: integer("version_number").notNull(),
   title: text("title").notNull(),
@@ -70,6 +93,7 @@ export const decisionVersions = pgTable("decision_versions", {
 // Assumptions
 export const assumptions = pgTable("assumptions", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   description: text("description").notNull(),
   status: assumptionStatusEnum("status").notNull().default("valid"),
@@ -82,6 +106,7 @@ export const assumptions = pgTable("assumptions", {
 // Evidence Links
 export const evidenceLinks = pgTable("evidence_links", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   title: text("title").notNull(),
   url: text("url").notNull(),
@@ -92,6 +117,7 @@ export const evidenceLinks = pgTable("evidence_links", {
 // Decision Dependencies
 export const dependencies = pgTable("dependencies", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   dependsOnId: varchar("depends_on_id", { length: 36 }).notNull().references(() => decisions.id),
   relationship: text("relationship"),
@@ -101,6 +127,7 @@ export const dependencies = pgTable("dependencies", {
 // Alerts
 export const alerts = pgTable("alerts", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   type: alertTypeEnum("type").notNull(),
   severity: alertSeverityEnum("severity").notNull(),
@@ -114,6 +141,7 @@ export const alerts = pgTable("alerts", {
 // Decision Debt Scores (historical)
 export const decisionDebtScores = pgTable("decision_debt_scores", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   decisionId: varchar("decision_id", { length: 36 }).notNull().references(() => decisions.id),
   score: integer("score").notNull(),
   factors: jsonb("factors"),
@@ -123,6 +151,7 @@ export const decisionDebtScores = pgTable("decision_debt_scores", {
 // Audit Log (append-only)
 export const auditLogs = pgTable("audit_logs", {
   id: varchar("id", { length: 36 }).primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: uuid("organization_id"),
   userId: varchar("user_id", { length: 36 }).notNull().references(() => users.id),
   action: text("action").notNull(),
   entityType: text("entity_type").notNull(),
@@ -136,7 +165,7 @@ export const auditLogs = pgTable("audit_logs", {
 
 export const decisionLog = pgTable("decision_log", {
   decisionId: uuid("decision_id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  organizationId: uuid("organization_id"),
   decisionType: text("decision_type").notNull(),
   sourceModule: text("source_module").notNull(),
   subjectType: text("subject_type").notNull(),
@@ -147,6 +176,7 @@ export const decisionLog = pgTable("decision_log", {
 
 export const decisionReasoning = pgTable("decision_reasoning", {
   reasoningId: uuid("reasoning_id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   summaryText: text("summary_text").notNull(),
   confidenceScore: doublePrecision("confidence_score"),
@@ -155,6 +185,7 @@ export const decisionReasoning = pgTable("decision_reasoning", {
 
 export const decisionAudit = pgTable("decision_audit", {
   auditId: uuid("audit_id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   eventType: text("event_type").notNull(),
   actor: text("actor").notNull().default("system"),
@@ -171,7 +202,7 @@ export type DecisionAudit = typeof decisionAudit.$inferSelect;
 
 export const principle = pgTable("principle", {
   principleId: uuid("principle_id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  organizationId: uuid("organization_id"),
   name: text("name").notNull(),
   statement: text("statement").notNull(),
   priority: integer("priority").notNull().default(50),
@@ -182,7 +213,7 @@ export const principle = pgTable("principle", {
 
 export const rule = pgTable("rule", {
   ruleId: uuid("rule_id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  organizationId: uuid("organization_id"),
   name: text("name").notNull(),
   description: text("description"),
   domain: text("domain").notNull(),
@@ -216,7 +247,7 @@ export type DecisionRuleHit = typeof decisionRuleHit.$inferSelect;
 
 export const action = pgTable("action", {
   actionId: uuid("action_id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  organizationId: uuid("organization_id"),
   name: text("name").notNull(),
   actionType: text("action_type").notNull(),
   description: text("description"),
@@ -228,6 +259,7 @@ export const action = pgTable("action", {
 
 export const actionProposal = pgTable("action_proposal", {
   proposalId: uuid("proposal_id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   ruleId: uuid("rule_id").notNull(),
   actionId: uuid("action_id"),
@@ -261,7 +293,7 @@ export const actionExecution = pgTable("action_execution", {
 
 export const automationSettings = pgTable("automation_settings", {
   settingsId: uuid("settings_id").defaultRandom().primaryKey(),
-  orgId: uuid("org_id"),
+  organizationId: uuid("organization_id"),
   enabled: boolean("enabled").notNull().default(false),
   disabledReason: text("disabled_reason"),
   updatedBy: text("updated_by"),
@@ -280,6 +312,7 @@ export type AutomationSettings = typeof automationSettings.$inferSelect;
 
 export const brainDecision = pgTable("brain_decision", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   domain: text("domain").notNull(),
   subjectType: text("subject_type").notNull(),
   subjectId: text("subject_id").notNull(),
@@ -301,6 +334,7 @@ export const brainDecision = pgTable("brain_decision", {
 
 export const decisionInputSnapshot = pgTable("decision_input_snapshot", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   inputJson: jsonb("input_json").notNull(),
   hash: text("hash").notNull(),
@@ -309,6 +343,7 @@ export const decisionInputSnapshot = pgTable("decision_input_snapshot", {
 
 export const principlesApplied = pgTable("principles_applied", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   principleId: uuid("principle_id").notNull(),
   principleVersion: text("principle_version").notNull().default("v1.0"),
@@ -319,6 +354,7 @@ export const principlesApplied = pgTable("principles_applied", {
 
 export const overrideHistory = pgTable("override_history", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   overriddenBy: text("overridden_by").notNull(),
   role: text("role").notNull(),
@@ -330,6 +366,7 @@ export const overrideHistory = pgTable("override_history", {
 
 export const assumptionValidationHistory = pgTable("assumption_validation_history", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   assumptionKey: text("assumption_key").notNull(),
   oldStatus: text("old_status").notNull(),
@@ -340,6 +377,7 @@ export const assumptionValidationHistory = pgTable("assumption_validation_histor
 
 export const driftMetrics = pgTable("drift_metrics", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   metricName: text("metric_name").notNull(),
   baselineValue: doublePrecision("baseline_value").notNull(),
   currentValue: doublePrecision("current_value").notNull(),
@@ -351,6 +389,7 @@ export const driftMetrics = pgTable("drift_metrics", {
 
 export const auditAccessLog = pgTable("audit_access_log", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   userId: text("user_id").notNull(),
   decisionId: uuid("decision_id").notNull(),
   accessedAt: timestamp("accessed_at", { withTimezone: true }).notNull().defaultNow(),
@@ -359,6 +398,7 @@ export const auditAccessLog = pgTable("audit_access_log", {
 
 export const auditExportLog = pgTable("audit_export_log", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   exportType: text("export_type").notNull(),
   exportPurpose: text("export_purpose").notNull(),
@@ -372,6 +412,7 @@ export const auditExportLog = pgTable("audit_export_log", {
 
 export const replayMismatchAlerts = pgTable("replay_mismatch_alerts", {
   id: uuid("id").defaultRandom().primaryKey(),
+  organizationId: uuid("organization_id"),
   decisionId: uuid("decision_id").notNull(),
   replayedOutcome: text("replayed_outcome").notNull(),
   historicalOutcome: text("historical_outcome").notNull(),
@@ -389,6 +430,10 @@ export type DriftMetric = typeof driftMetrics.$inferSelect;
 export type AuditAccessLog = typeof auditAccessLog.$inferSelect;
 export type AuditExportLog = typeof auditExportLog.$inferSelect;
 export type ReplayMismatchAlert = typeof replayMismatchAlerts.$inferSelect;
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;
+export type UserOrganization = typeof userOrganizations.$inferSelect;
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });

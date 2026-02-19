@@ -19,36 +19,52 @@ import {
   Eye,
   Plus,
   Settings,
+  ChevronsUpDown,
+  Check,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useOrg } from "@/lib/org-context";
 
-const mainNavItems = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Decisions",
-    url: "/decisions",
-    icon: FileText,
-  },
-  {
-    title: "Alerts",
-    url: "/alerts",
-    icon: Bell,
-  },
-  {
-    title: "Board Mode",
-    url: "/board",
-    icon: Eye,
-  },
-];
+function getNavItems(orgSlug: string | null) {
+  const prefix = orgSlug ? `/org/${orgSlug}` : "";
+  return [
+    {
+      title: "Dashboard",
+      url: `${prefix}/dashboard`,
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Decisions",
+      url: `${prefix}/decisions`,
+      icon: FileText,
+    },
+    {
+      title: "Alerts",
+      url: `${prefix}/alerts`,
+      icon: Bell,
+    },
+    {
+      title: "Board Mode",
+      url: `${prefix}/board`,
+      icon: Eye,
+    },
+  ];
+}
 
 export function AppSidebar() {
   const [location] = useLocation();
   const { isMobile, setOpenMobile } = useSidebar();
+  const { organizations, activeOrg, activeOrgSlug, switchOrg } = useOrg();
+
+  const mainNavItems = getNavItems(activeOrgSlug);
 
   const handleNavClick = () => {
     if (isMobile) {
@@ -70,11 +86,47 @@ export function AppSidebar() {
             </div>
           </div>
         </Link>
+
+        {organizations.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between mt-3"
+                size="sm"
+                data-testid="button-org-switcher"
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Building2 className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate">{activeOrg?.name || "Select Space"}</span>
+                </span>
+                <ChevronsUpDown className="w-3 h-3 flex-shrink-0 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[--radix-dropdown-menu-trigger-width]">
+              {organizations.map((org) => (
+                <DropdownMenuItem
+                  key={org.id}
+                  onClick={() => switchOrg(org.slug)}
+                  data-testid={`menu-org-${org.slug}`}
+                >
+                  <span className="flex items-center gap-2 flex-1 truncate">
+                    <Building2 className="w-4 h-4 flex-shrink-0" />
+                    <span className="truncate">{org.name}</span>
+                  </span>
+                  {activeOrg?.id === org.id && (
+                    <Check className="w-4 h-4 flex-shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <div className="px-3 mb-2">
-            <Link href="/decisions/new" onClick={handleNavClick}>
+            <Link href={activeOrgSlug ? `/org/${activeOrgSlug}/decisions/new` : "/decisions/new"} onClick={handleNavClick}>
               <Button className="w-full justify-start gap-2" size="sm" data-testid="button-new-decision">
                 <Plus className="w-4 h-4" />
                 New Decision
@@ -90,7 +142,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 
-                    isActive={location === item.url || (item.url !== "/dashboard" && location.startsWith(item.url))}
+                    isActive={location === item.url || (item.url.endsWith("/decisions") && location.includes("/decisions/")) || (item.url.endsWith("/alerts") && location.includes("/alerts"))}
                   >
                     <Link 
                       href={item.url} 

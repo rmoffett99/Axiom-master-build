@@ -30,6 +30,7 @@ import {
   User
 } from "lucide-react";
 import { useState } from "react";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { DecisionWithDetails } from "@shared/schema";
 
 function DecisionStatusBadge({ status }: { status: string }) {
@@ -61,6 +62,7 @@ function DebtScoreBadge({ score }: { score: number }) {
 }
 
 export default function DecisionsPage() {
+  const orgLink = useOrgLink();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
@@ -95,7 +97,7 @@ export default function DecisionsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Decisions</h1>
           <p className="text-muted-foreground">Manage your organization's decision records</p>
         </div>
-        <Link href="/decisions/new">
+        <Link href={orgLink("/decisions/new")}>
           <Button data-testid="button-new-decision-page">
             <Plus className="w-4 h-4 mr-2" />
             New Decision
@@ -147,7 +149,7 @@ export default function DecisionsPage() {
                   ? "Try adjusting your filters or search query."
                   : "Get started by creating your first decision record."}
               </p>
-              <Link href="/decisions/new">
+              <Link href={orgLink("/decisions/new")}>
                 <Button data-testid="button-create-first-decision">
                   <Plus className="w-4 h-4 mr-2" />
                   Create Decision
@@ -170,7 +172,7 @@ export default function DecisionsPage() {
                 {filteredDecisions.map((decision) => (
                   <TableRow key={decision.id} className="cursor-pointer hover-elevate" data-testid={`row-decision-${decision.id}`}>
                     <TableCell>
-                      <Link href={`/decisions/${decision.id}`}>
+                      <Link href={orgLink(`/decisions/${decision.id}`)}>
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <FileText className="w-4 h-4 text-primary" />
@@ -207,7 +209,7 @@ export default function DecisionsPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Link href={`/decisions/${decision.id}`}>
+                      <Link href={orgLink(`/decisions/${decision.id}`)}>
                         <Button variant="ghost" size="icon" data-testid={`button-view-decision-${decision.id}`}>
                           <ChevronRight className="w-4 h-4" />
                         </Button>

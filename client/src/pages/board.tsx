@@ -36,6 +36,7 @@ import {
   Users,
   Calendar
 } from "lucide-react";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { DashboardStats, DecisionWithDetails } from "@shared/schema";
 
 function DebtScoreBadge({ score }: { score: number }) {
@@ -80,6 +81,7 @@ function StatBlock({
 }
 
 export default function BoardModePage() {
+  const orgLink = useOrgLink();
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -274,7 +276,7 @@ export default function BoardModePage() {
                   topRisks.map((decision, index) => (
                     <TableRow key={decision.id} className="cursor-pointer hover-elevate">
                       <TableCell>
-                        <Link href={`/decisions/${decision.id}`} className="flex items-center gap-2" data-testid={`link-decision-${decision.id}`}>
+                        <Link href={orgLink(`/decisions/${decision.id}`)} className="flex items-center gap-2" data-testid={`link-decision-${decision.id}`}>
                           <span className="text-xs text-muted-foreground w-5">{index + 1}.</span>
                           <span className="font-medium truncate max-w-48">{decision.title}</span>
                         </Link>
@@ -331,7 +333,7 @@ export default function BoardModePage() {
                     return (
                       <TableRow key={decision.id} className="cursor-pointer hover-elevate">
                         <TableCell>
-                          <Link href={`/decisions/${decision.id}`} className="block" data-testid={`link-review-decision-${decision.id}`}>
+                          <Link href={orgLink(`/decisions/${decision.id}`)} className="block" data-testid={`link-review-decision-${decision.id}`}>
                             <span className="font-medium truncate block max-w-64">{decision.title}</span>
                             <span className="text-xs text-muted-foreground">
                               Owner: {decision.owner?.displayName || "Unknown"}

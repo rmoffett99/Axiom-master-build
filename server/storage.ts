@@ -12,6 +12,8 @@ import {
   alerts,
   decisionDebtScores,
   auditLogs,
+  organizations,
+  userOrganizations,
   type User,
   type InsertUser,
   type Team,
@@ -32,24 +34,32 @@ import {
   type AuditLog,
   type InsertAuditLog,
   type DecisionWithDetails,
+  type Organization,
+  type UserOrganization,
 } from "@shared/schema";
 
 export interface IStorage {
+  // Organizations
+  getOrganizations(): Promise<Organization[]>;
+  getOrganizationBySlug(slug: string): Promise<Organization | undefined>;
+  getOrganization(id: string): Promise<Organization | undefined>;
+  getUserOrganizations(userId: string): Promise<(UserOrganization & { organization: Organization })[]>;
+
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  getAllUsers(): Promise<User[]>;
+  getAllUsers(organizationId: string): Promise<User[]>;
 
   // Teams
   getTeam(id: string): Promise<Team | undefined>;
   createTeam(team: InsertTeam): Promise<Team>;
-  getAllTeams(): Promise<Team[]>;
+  getAllTeams(organizationId: string): Promise<Team[]>;
 
   // Decisions
   getDecision(id: string): Promise<DecisionWithDetails | undefined>;
-  getAllDecisions(): Promise<DecisionWithDetails[]>;
-  createDecision(decision: InsertDecision, version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">, assumptions: Omit<InsertAssumption, "decisionId">[]): Promise<Decision>;
+  getAllDecisions(organizationId: string): Promise<DecisionWithDetails[]>;
+  createDecision(organizationId: string, decision: InsertDecision, version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">, assumptions: Omit<InsertAssumption, "decisionId">[]): Promise<Decision>;
   amendDecision(decisionId: string, version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">): Promise<DecisionVersion>;
   updateDecisionDebtScore(decisionId: string, score: number): Promise<void>;
 
@@ -59,13 +69,13 @@ export interface IStorage {
   getAssumptionsByDecision(decisionId: string): Promise<Assumption[]>;
 
   // Alerts
-  getAllAlerts(): Promise<(Alert & { decision?: Decision })[]>;
+  getAllAlerts(organizationId: string): Promise<(Alert & { decision?: Decision })[]>;
   getAlertsByDecision(decisionId: string): Promise<Alert[]>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   acknowledgeAlert(alertId: string, userId: string): Promise<Alert>;
 
   // Dashboard
-  getDashboardStats(): Promise<{
+  getDashboardStats(organizationId: string): Promise<{
     totalDecisions: number;
     avgDebtScore: number;
     criticalAlerts: number;
@@ -79,6 +89,31 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Organizations
+  async getOrganizations(): Promise<Organization[]> {
+    return db.select().from(organizations);
+  }
+
+  async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    return org;
+  }
+
+  async getOrganization(id: string): Promise<Organization | undefined> {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    return org;
+  }
+
+  async getUserOrganizations(userId: string): Promise<(UserOrganization & { organization: Organization })[]> {
+    const memberships = await db.select().from(userOrganizations).where(eq(userOrganizations.userId, userId));
+    const result: (UserOrganization & { organization: Organization })[] = [];
+    for (const m of memberships) {
+      const [org] = await db.select().from(organizations).where(eq(organizations.id, m.organizationId));
+      if (org) result.push({ ...m, organization: org });
+    }
+    return result;
+  }
+
   // Users
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -95,8 +130,8 @@ export class DatabaseStorage implements IStorage {
     return newUser;
   }
 
-  async getAllUsers(): Promise<User[]> {
-    return db.select().from(users);
+  async getAllUsers(organizationId: string): Promise<User[]> {
+    return db.select().from(users).where(eq(users.organizationId, organizationId));
   }
 
   // Teams
@@ -110,8 +145,8 @@ export class DatabaseStorage implements IStorage {
     return newTeam;
   }
 
-  async getAllTeams(): Promise<Team[]> {
-    return db.select().from(teams);
+  async getAllTeams(organizationId: string): Promise<Team[]> {
+    return db.select().from(teams).where(eq(teams.organizationId, organizationId));
   }
 
   // Decisions
@@ -154,10 +189,11 @@ export class DatabaseStorage implements IStorage {
     } as DecisionWithDetails & { versions: DecisionVersion[]; evidence: EvidenceLink[]; alerts: Alert[] };
   }
 
-  async getAllDecisions(): Promise<DecisionWithDetails[]> {
+  async getAllDecisions(organizationId: string): Promise<DecisionWithDetails[]> {
     const allDecisions = await db
       .select()
       .from(decisions)
+      .where(eq(decisions.organizationId, organizationId))
       .orderBy(desc(decisions.createdAt));
 
     const result: DecisionWithDetails[] = [];
@@ -180,45 +216,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createDecision(
+    organizationId: string,
     decision: InsertDecision,
     version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">,
     assumptionsList: Omit<InsertAssumption, "decisionId">[]
   ): Promise<Decision> {
-    // Create the decision
     const [newDecision] = await db
       .insert(decisions)
       .values({
         ...decision,
+        organizationId,
         status: "published",
         publishedAt: new Date(),
       })
       .returning();
 
-    // Create the first version
     const [newVersion] = await db
       .insert(decisionVersions)
       .values({
         decisionId: newDecision.id,
+        organizationId,
         versionNumber: 1,
         ...version,
       })
       .returning();
 
-    // Update decision with current version
     await db
       .update(decisions)
       .set({ currentVersionId: newVersion.id })
       .where(eq(decisions.id, newDecision.id));
 
-    // Create assumptions
     for (const assumption of assumptionsList) {
       await db.insert(assumptions).values({
         decisionId: newDecision.id,
+        organizationId,
         ...assumption,
       });
     }
 
-    // Create audit log
     await this.createAuditLog({
       userId: decision.ownerId,
       action: "decision_created",
@@ -234,7 +269,9 @@ export class DatabaseStorage implements IStorage {
     decisionId: string,
     version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">
   ): Promise<DecisionVersion> {
-    // Get current version number
+    const [existingDecision] = await db.select().from(decisions).where(eq(decisions.id, decisionId));
+    const orgId = existingDecision?.organizationId || null;
+
     const existingVersions = await db
       .select()
       .from(decisionVersions)
@@ -245,23 +282,21 @@ export class DatabaseStorage implements IStorage {
       ? existingVersions[0].versionNumber + 1 
       : 1;
 
-    // Create new version
     const [newVersion] = await db
       .insert(decisionVersions)
       .values({
         decisionId,
+        organizationId: orgId,
         versionNumber: nextVersionNumber,
         ...version,
       })
       .returning();
 
-    // Update decision with new current version
     await db
       .update(decisions)
       .set({ currentVersionId: newVersion.id })
       .where(eq(decisions.id, decisionId));
 
-    // Create audit log
     await this.createAuditLog({
       userId: version.authorId,
       action: "decision_amended",
@@ -279,7 +314,6 @@ export class DatabaseStorage implements IStorage {
       .set({ debtScore: score })
       .where(eq(decisions.id, decisionId));
 
-    // Store historical score
     await db.insert(decisionDebtScores).values({
       decisionId,
       score,
@@ -304,7 +338,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(assumptions.id, id))
       .returning();
 
-    // Create audit log
     const assumption = await this.getAssumption(id);
     if (assumption) {
       await this.createAuditLog({
@@ -327,15 +360,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Alerts
-  async getAllAlerts(): Promise<(Alert & { decision?: Decision })[]> {
+  async getAllAlerts(organizationId: string): Promise<(Alert & { decision?: Decision })[]> {
     const allAlerts = await db
       .select()
       .from(alerts)
+      .where(eq(alerts.organizationId, organizationId))
       .orderBy(desc(alerts.createdAt));
 
     const result: (Alert & { decision?: Decision })[] = [];
     for (const alert of allAlerts) {
-      const [decision] = await db.select().from(decisions).where(eq(decisions.id, alert.decisionId));
+      const [decision] = await db.select().from(decisions).where(
+        and(eq(decisions.id, alert.decisionId), eq(decisions.organizationId, organizationId))
+      );
       result.push({ ...alert, decision });
     }
 
@@ -365,7 +401,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(alerts.id, alertId))
       .returning();
 
-    // Create audit log
     await this.createAuditLog({
       userId,
       action: "alert_acknowledged",
@@ -378,7 +413,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Dashboard
-  async getDashboardStats(): Promise<{
+  async getDashboardStats(organizationId: string): Promise<{
     totalDecisions: number;
     avgDebtScore: number;
     criticalAlerts: number;
@@ -386,26 +421,23 @@ export class DatabaseStorage implements IStorage {
     debtTrend: { date: string; score: number }[];
     topRiskyDecisions: DecisionWithDetails[];
   }> {
-    // Get all decisions
-    const allDecisions = await this.getAllDecisions();
+    const allDecisions = await this.getAllDecisions(organizationId);
     const totalDecisions = allDecisions.length;
 
-    // Calculate average debt score
     const avgDebtScore = allDecisions.length > 0
       ? Math.round(allDecisions.reduce((sum, d) => sum + (d.debtScore || 0), 0) / allDecisions.length)
       : 0;
 
-    // Count critical alerts
     const allAlerts = await db
       .select()
       .from(alerts)
       .where(and(
+        eq(alerts.organizationId, organizationId),
         eq(alerts.severity, "critical"),
         sql`${alerts.acknowledgedAt} IS NULL`
       ));
     const criticalAlerts = allAlerts.length;
 
-    // Count expiring soon (within 30 days)
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
     const expiringSoon = allDecisions.filter(d => {
@@ -414,8 +446,6 @@ export class DatabaseStorage implements IStorage {
       return reviewDate <= thirtyDaysFromNow && reviewDate > new Date();
     }).length;
 
-    // Generate deterministic debt trend based on actual decision data
-    // Use historical debt scores from database if available, otherwise derive from current state
     const historicalScores = await db
       .select()
       .from(decisionDebtScores)
@@ -424,7 +454,6 @@ export class DatabaseStorage implements IStorage {
     const debtTrend: { date: string; score: number }[] = [];
     
     if (historicalScores.length > 0) {
-      // Group scores by date and calculate daily averages
       const scoresByDate = new Map<string, number[]>();
       for (const score of historicalScores) {
         const dateKey = new Date(score.calculatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -434,7 +463,6 @@ export class DatabaseStorage implements IStorage {
         scoresByDate.get(dateKey)!.push(score.score);
       }
       
-      // Build trend from last 30 days
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -445,12 +473,10 @@ export class DatabaseStorage implements IStorage {
           const avg = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
           debtTrend.push({ date: dateKey, score: avg });
         } else {
-          // Use current average for days without historical data
           debtTrend.push({ date: dateKey, score: avgDebtScore });
         }
       }
     } else {
-      // No historical data - show flat line at current average (honest representation)
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
@@ -461,7 +487,6 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Get top risky decisions
     const topRiskyDecisions = [...allDecisions]
       .sort((a, b) => (b.debtScore || 0) - (a.debtScore || 0))
       .slice(0, 10);

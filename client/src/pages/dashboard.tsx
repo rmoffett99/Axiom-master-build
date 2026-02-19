@@ -21,6 +21,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useOrgLink } from "@/lib/use-org-link";
 import type { DashboardStats, DecisionWithDetails } from "@shared/schema";
 
 function StatCard({ 
@@ -59,6 +60,7 @@ function StatCard({
 }
 
 function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
+  const orgLink = useOrgLink();
   const getDebtVariant = (score: number): "destructive" | "secondary" | "outline" => {
     if (score >= 70) return "destructive";
     if (score >= 40) return "secondary";
@@ -66,7 +68,7 @@ function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
   };
 
   return (
-    <Link href={`/decisions/${decision.id}`}>
+    <Link href={orgLink(`/decisions/${decision.id}`)}>
       <div className="flex items-center gap-4 p-3 rounded-md hover-elevate cursor-pointer" data-testid={`decision-row-${decision.id}`}>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{decision.title}</p>
@@ -84,6 +86,7 @@ function DecisionRow({ decision }: { decision: DecisionWithDetails }) {
 }
 
 function ExpiringDecisionRow({ decision, urgent = false }: { decision: DecisionWithDetails; urgent?: boolean }) {
+  const orgLink = useOrgLink();
   const daysUntilReview = decision.reviewByDate 
     ? Math.ceil((new Date(decision.reviewByDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
@@ -91,7 +94,7 @@ function ExpiringDecisionRow({ decision, urgent = false }: { decision: DecisionW
   const pendingAssumptions = decision.assumptions?.filter(a => a.status === "pending_review").length || 0;
 
   return (
-    <Link href={`/decisions/${decision.id}`}>
+    <Link href={orgLink(`/decisions/${decision.id}`)}>
       <div className="flex items-center gap-4 p-3 rounded-md hover-elevate cursor-pointer" data-testid={`expiring-row-${decision.id}`}>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-sm truncate">{decision.title}</p>
@@ -111,6 +114,7 @@ function ExpiringDecisionRow({ decision, urgent = false }: { decision: DecisionW
 }
 
 export default function DashboardPage() {
+  const orgLink = useOrgLink();
   const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -159,7 +163,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Organization Decision Health Overview</p>
         </div>
-        <Link href="/decisions/new">
+        <Link href={orgLink("/decisions/new")}>
           <Button data-testid="button-create-decision">
             Create Decision
             <ArrowRight className="w-4 h-4 ml-2" />
@@ -255,7 +259,7 @@ export default function DashboardPage() {
               <CardTitle className="text-lg">Highest Risk</CardTitle>
               <CardDescription>Ranked by decision debt score</CardDescription>
             </div>
-            <Link href="/decisions">
+            <Link href={orgLink("/decisions")}>
               <Button variant="ghost" size="sm" data-testid="button-view-all-risky">
                 View All
               </Button>

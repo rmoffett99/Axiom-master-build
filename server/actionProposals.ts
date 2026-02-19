@@ -11,14 +11,14 @@ import { eq, and, type SQL } from "drizzle-orm";
 
 type ProposeInput = {
   decisionId: string;
-  orgId?: string | null;
+  organizationId?: string | null;
   domain: string;
   metadata: Record<string, unknown>;
 };
 
 export async function proposeActionsForRuleHits(input: ProposeInput): Promise<void> {
   try {
-    const { decisionId, orgId = null, domain } = input;
+    const { decisionId, organizationId = null, domain } = input;
 
     const hits = await db
       .select({
@@ -54,7 +54,7 @@ export async function proposeActionsForRuleHits(input: ProposeInput): Promise<vo
           domain,
           ruleName: h.ruleName,
           severity: h.severity,
-          orgId,
+          organizationId,
         },
         requestedByActor: "system",
       });

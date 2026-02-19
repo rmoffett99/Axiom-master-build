@@ -10,10 +10,11 @@ import {
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
+const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+
 export async function seedDatabase() {
   console.log("Checking if database needs seeding...");
 
-  // Check if we already have data
   const existingUsers = await db.select().from(users);
   if (existingUsers.length > 0) {
     console.log("Database already has data, skipping seed.");
@@ -22,12 +23,12 @@ export async function seedDatabase() {
 
   console.log("Seeding database with initial data...");
 
-  // Create users
   const [adminUser] = await db.insert(users).values({
     username: "jdoe",
     email: "john.doe@axiom.com",
     displayName: "John Doe",
     role: "admin",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [ownerUser] = await db.insert(users).values({
@@ -35,6 +36,7 @@ export async function seedDatabase() {
     email: "sarah.smith@axiom.com",
     displayName: "Sarah Smith",
     role: "owner",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [contributorUser] = await db.insert(users).values({
@@ -42,6 +44,7 @@ export async function seedDatabase() {
     email: "michael.williams@axiom.com",
     displayName: "Michael Williams",
     role: "contributor",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [boardUser] = await db.insert(users).values({
@@ -49,26 +52,27 @@ export async function seedDatabase() {
     email: "emily.johnson@axiom.com",
     displayName: "Emily Johnson",
     role: "board",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
-  // Create teams
   const [engineeringTeam] = await db.insert(teams).values({
     name: "Engineering",
     description: "Platform and infrastructure team",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [productTeam] = await db.insert(teams).values({
     name: "Product",
     description: "Product strategy and development",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [financeTeam] = await db.insert(teams).values({
     name: "Finance",
     description: "Financial planning and analysis",
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
-  // Create decisions with versions and assumptions
-  // Decision 1: Cloud Migration
   const reviewDate1 = new Date();
   reviewDate1.setDate(reviewDate1.getDate() + 45);
 
@@ -80,6 +84,7 @@ export async function seedDatabase() {
     debtScore: 35,
     reviewByDate: reviewDate1,
     publishedAt: new Date(),
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [version1] = await db.insert(decisionVersions).values({
@@ -92,18 +97,18 @@ export async function seedDatabase() {
     alternatives: "1. Stay with single cloud and negotiate better terms\n2. Move entirely to a different provider\n3. Build on-premise infrastructure",
     risks: "Increased operational complexity, potential for configuration drift between clouds, and higher initial implementation costs.",
     authorId: adminUser.id,
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   await db.update(decisions).set({ currentVersionId: version1.id }).where(eq(decisions.id, decision1.id));
 
   await db.insert(assumptions).values([
-    { decisionId: decision1.id, description: "Cloud providers will maintain current pricing models", status: "valid", validUntil: reviewDate1 },
-    { decisionId: decision1.id, description: "Team can acquire multi-cloud expertise within 6 months", status: "valid", validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) },
-    { decisionId: decision1.id, description: "Kubernetes provides sufficient abstraction layer", status: "valid" },
-    { decisionId: decision1.id, description: "Compliance requirements allow data in multiple clouds", status: "pending_review" },
+    { decisionId: decision1.id, description: "Cloud providers will maintain current pricing models", status: "valid", validUntil: reviewDate1, organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision1.id, description: "Team can acquire multi-cloud expertise within 6 months", status: "valid", validUntil: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision1.id, description: "Kubernetes provides sufficient abstraction layer", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision1.id, description: "Compliance requirements allow data in multiple clouds", status: "pending_review", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Decision 2: Microservices
   const reviewDate2 = new Date();
   reviewDate2.setDate(reviewDate2.getDate() + 20);
 
@@ -115,6 +120,7 @@ export async function seedDatabase() {
     debtScore: 62,
     reviewByDate: reviewDate2,
     publishedAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [version2] = await db.insert(decisionVersions).values({
@@ -127,17 +133,17 @@ export async function seedDatabase() {
     alternatives: "1. Modularize the monolith without full decomposition\n2. Rewrite in a new framework\n3. Maintain status quo with more developers",
     risks: "Distributed systems complexity, potential for inconsistent data, and need for significant DevOps investment.",
     authorId: ownerUser.id,
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   await db.update(decisions).set({ currentVersionId: version2.id }).where(eq(decisions.id, decision2.id));
 
   await db.insert(assumptions).values([
-    { decisionId: decision2.id, description: "Team size will grow to support distributed architecture", status: "pending_review" },
-    { decisionId: decision2.id, description: "Service mesh technology will mature within our timeline", status: "valid" },
-    { decisionId: decision2.id, description: "Data consistency challenges are manageable with eventual consistency", status: "valid" },
+    { decisionId: decision2.id, description: "Team size will grow to support distributed architecture", status: "pending_review", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision2.id, description: "Service mesh technology will mature within our timeline", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision2.id, description: "Data consistency challenges are manageable with eventual consistency", status: "valid", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Decision 3: Remote Work Policy
   const reviewDate3 = new Date();
   reviewDate3.setDate(reviewDate3.getDate() + 75);
 
@@ -149,6 +155,7 @@ export async function seedDatabase() {
     debtScore: 28,
     reviewByDate: reviewDate3,
     publishedAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [version3] = await db.insert(decisionVersions).values({
@@ -161,17 +168,17 @@ export async function seedDatabase() {
     alternatives: "1. Return to full in-office\n2. Go fully remote\n3. Flexible per-team policies",
     risks: "Potential culture fragmentation, coordination challenges, and possible inequity between remote and in-office employees.",
     authorId: contributorUser.id,
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   await db.update(decisions).set({ currentVersionId: version3.id }).where(eq(decisions.id, decision3.id));
 
   await db.insert(assumptions).values([
-    { decisionId: decision3.id, description: "Real estate market allows flexible lease terms", status: "valid" },
-    { decisionId: decision3.id, description: "Productivity remains stable with hybrid model", status: "valid" },
-    { decisionId: decision3.id, description: "Collaboration tools will continue to improve", status: "valid" },
+    { decisionId: decision3.id, description: "Real estate market allows flexible lease terms", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision3.id, description: "Productivity remains stable with hybrid model", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision3.id, description: "Collaboration tools will continue to improve", status: "valid", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Decision 4: AI Investment
   const reviewDate4 = new Date();
   reviewDate4.setDate(reviewDate4.getDate() + 15);
 
@@ -183,6 +190,7 @@ export async function seedDatabase() {
     debtScore: 78,
     reviewByDate: reviewDate4,
     publishedAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000),
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [version4] = await db.insert(decisionVersions).values({
@@ -195,18 +203,18 @@ export async function seedDatabase() {
     alternatives: "1. Partner with AI vendors for specific features\n2. Acquire AI startup\n3. Wait for technology to mature",
     risks: "High upfront investment, talent competition, and rapid technology obsolescence. Regulatory uncertainty around AI use.",
     authorId: adminUser.id,
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   await db.update(decisions).set({ currentVersionId: version4.id }).where(eq(decisions.id, decision4.id));
 
   await db.insert(assumptions).values([
-    { decisionId: decision4.id, description: "AI talent market will remain accessible at current compensation levels", status: "expired" },
-    { decisionId: decision4.id, description: "Open source AI models will continue advancing", status: "valid" },
-    { decisionId: decision4.id, description: "Regulatory environment remains favorable", status: "pending_review" },
-    { decisionId: decision4.id, description: "Customer data can be used for AI training", status: "pending_review" },
+    { decisionId: decision4.id, description: "AI talent market will remain accessible at current compensation levels", status: "expired", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision4.id, description: "Open source AI models will continue advancing", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision4.id, description: "Regulatory environment remains favorable", status: "pending_review", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision4.id, description: "Customer data can be used for AI training", status: "pending_review", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Decision 5: Budget Reallocation
   const [decision5] = await db.insert(decisions).values({
     title: "Q1 2025 Budget Reallocation",
     ownerId: ownerUser.id,
@@ -215,6 +223,7 @@ export async function seedDatabase() {
     debtScore: 45,
     reviewByDate: new Date(Date.now() + 55 * 24 * 60 * 60 * 1000),
     publishedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   const [version5] = await db.insert(decisionVersions).values({
@@ -227,53 +236,56 @@ export async function seedDatabase() {
     alternatives: "1. Maintain current allocation\n2. Across-the-board cuts\n3. Seek additional funding",
     risks: "Short-term revenue impact from reduced marketing. Team capacity constraints for additional development.",
     authorId: ownerUser.id,
+    organizationId: DEFAULT_ORG_ID,
   }).returning();
 
   await db.update(decisions).set({ currentVersionId: version5.id }).where(eq(decisions.id, decision5.id));
 
   await db.insert(assumptions).values([
-    { decisionId: decision5.id, description: "Market conditions will stabilize within 6 months", status: "valid" },
-    { decisionId: decision5.id, description: "Product improvements will drive organic growth", status: "valid" },
-    { decisionId: decision5.id, description: "Existing customer base will not churn significantly", status: "valid" },
+    { decisionId: decision5.id, description: "Market conditions will stabilize within 6 months", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision5.id, description: "Product improvements will drive organic growth", status: "valid", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision5.id, description: "Existing customer base will not churn significantly", status: "valid", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Create evidence links
   await db.insert(evidenceLinks).values([
-    { decisionId: decision1.id, title: "Cloud Cost Analysis Report", url: "https://internal.axiom.com/docs/cloud-analysis-2024", description: "Detailed cost comparison between cloud providers" },
-    { decisionId: decision1.id, title: "Gartner Multi-Cloud Report", url: "https://gartner.com/multicloud-2024", description: "Industry analysis of multi-cloud adoption trends" },
-    { decisionId: decision2.id, title: "Microservices Migration Guide", url: "https://internal.axiom.com/docs/microservices-guide", description: "Internal documentation for microservices transition" },
-    { decisionId: decision4.id, title: "AI Investment Business Case", url: "https://internal.axiom.com/docs/ai-business-case", description: "ROI analysis for AI capabilities investment" },
+    { decisionId: decision1.id, title: "Cloud Cost Analysis Report", url: "https://internal.axiom.com/docs/cloud-analysis-2024", description: "Detailed cost comparison between cloud providers", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision1.id, title: "Gartner Multi-Cloud Report", url: "https://gartner.com/multicloud-2024", description: "Industry analysis of multi-cloud adoption trends", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision2.id, title: "Microservices Migration Guide", url: "https://internal.axiom.com/docs/microservices-guide", description: "Internal documentation for microservices transition", organizationId: DEFAULT_ORG_ID },
+    { decisionId: decision4.id, title: "AI Investment Business Case", url: "https://internal.axiom.com/docs/ai-business-case", description: "ROI analysis for AI capabilities investment", organizationId: DEFAULT_ORG_ID },
   ]);
 
-  // Create alerts
   await db.insert(alerts).values([
     { 
       decisionId: decision4.id, 
       type: "assumption_expired", 
       severity: "critical", 
       message: "AI talent market assumption has expired. Review compensation benchmarks and hiring strategy.",
-      metadata: { assumptionIndex: 0 }
+      metadata: { assumptionIndex: 0 },
+      organizationId: DEFAULT_ORG_ID,
     },
     { 
       decisionId: decision2.id, 
       type: "review_overdue", 
       severity: "high", 
       message: "Decision review date is approaching. Team growth assumption requires validation.",
-      metadata: {}
+      metadata: {},
+      organizationId: DEFAULT_ORG_ID,
     },
     { 
       decisionId: decision4.id, 
       type: "high_debt_score", 
       severity: "high", 
       message: "Decision debt score exceeds threshold (78). Multiple assumptions require review.",
-      metadata: { score: 78 }
+      metadata: { score: 78 },
+      organizationId: DEFAULT_ORG_ID,
     },
     { 
       decisionId: decision1.id, 
       type: "review_overdue", 
       severity: "medium", 
       message: "Compliance assumption pending review. Verify multi-cloud data residency requirements.",
-      metadata: {}
+      metadata: {},
+      organizationId: DEFAULT_ORG_ID,
     },
   ]);
 

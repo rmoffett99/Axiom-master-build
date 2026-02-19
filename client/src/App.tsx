@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
+import { OrgProvider } from "@/lib/org-context";
 
 import LandingPage from "@/pages/landing";
 import DashboardPage from "@/pages/dashboard";
@@ -22,15 +23,16 @@ const sidebarStyle = {
   "--sidebar-width-icon": "3rem",
 } as React.CSSProperties;
 
-function AppRoutes() {
+function OrgRoutes() {
   return (
     <Switch>
-      <Route path="/dashboard" component={DashboardPage} />
-      <Route path="/decisions/new" component={DecisionNewPage} />
-      <Route path="/decisions/:id" component={DecisionDetailPage} />
-      <Route path="/decisions" component={DecisionsPage} />
-      <Route path="/alerts" component={AlertsPage} />
-      <Route path="/board" component={BoardModePage} />
+      <Route path="/org/:orgSlug/dashboard" component={DashboardPage} />
+      <Route path="/org/:orgSlug/decisions/new" component={DecisionNewPage} />
+      <Route path="/org/:orgSlug/decisions/:id" component={DecisionDetailPage} />
+      <Route path="/org/:orgSlug/decisions" component={DecisionsPage} />
+      <Route path="/org/:orgSlug/alerts" component={AlertsPage} />
+      <Route path="/org/:orgSlug/board" component={BoardModePage} />
+      <Route path="/org/:orgSlug" component={DashboardPage} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -47,7 +49,7 @@ function AppLayout() {
             <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto">
-            <AppRoutes />
+            <OrgRoutes />
           </main>
         </div>
       </div>
@@ -71,8 +73,10 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="axiom-ui-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <OrgProvider>
+            <Toaster />
+            <Router />
+          </OrgProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
