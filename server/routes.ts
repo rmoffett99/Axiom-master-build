@@ -4,6 +4,10 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { logDecision } from "./logDecision";
 import { runRules } from "./runRules";
+import { approveActionProposal, executeApprovedAction } from "./actionProposals";
+import { db } from "./db";
+import { actionProposal, automationSettings } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 // Validation schemas for API requests
 const createDecisionSchema = z.object({
@@ -331,6 +335,127 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error acknowledging alert:", error);
       res.status(500).json({ error: "Failed to acknowledge alert" });
+    }
+  });
+
+  // ===== Company Brain V3: Action Proposals & Approvals =====
+  // Backend-only endpoints. No UI. Full audit trail.
+
+  app.get("/api/brain/proposals", async (req, res) => {
+    try {
+      const statusParam = z.enum(["pending", "approved", "rejected", "executed", "expired"]).optional().safeParse(req.query.status);
+      const status = statusParam.success ? statusParam.data : undefined;
+      const filters = status ? eq(actionProposal.status, status) : undefined;
+      const proposals = await db.select().from(actionProposal).where(filters).orderBy(actionProposal.createdAt);
+      res.json(proposals);
+    } catch (error) {
+      console.error("Error fetching proposals:", error);
+      res.status(500).json({ error: "Failed to fetch proposals" });
+    }
+  });
+
+  app.post("/api/brain/proposals/:id/approve", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        approverId: z.string().min(1),
+        approverRole: z.string().min(1),
+        status: z.enum(["approved", "rejected"]),
+        reason: z.string().optional(),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const result = await approveActionProposal({
+        proposalId: req.params.id,
+        ...parseResult.data,
+      });
+
+      if (!result) {
+        return res.status(404).json({ error: "Proposal not found or not pending" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error approving proposal:", error);
+      res.status(500).json({ error: "Failed to approve proposal" });
+    }
+  });
+
+  app.post("/api/brain/proposals/:id/execute", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        executedBy: z.string().min(1),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const result = await executeApprovedAction({
+        proposalId: req.params.id,
+        executedBy: parseResult.data.executedBy,
+      });
+
+      if (!result) {
+        return res.status(404).json({ error: "Proposal not found or not approved" });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error("Error executing proposal:", error);
+      res.status(500).json({ error: "Failed to execute proposal" });
+    }
+  });
+
+  app.get("/api/brain/automation", async (req, res) => {
+    try {
+      const settings = await db.select().from(automationSettings).limit(1);
+      if (settings.length === 0) {
+        return res.json({ enabled: false, disabledReason: "not_configured" });
+      }
+      res.json(settings[0]);
+    } catch (error) {
+      console.error("Error fetching automation settings:", error);
+      res.status(500).json({ error: "Failed to fetch automation settings" });
+    }
+  });
+
+  app.patch("/api/brain/automation", async (req, res) => {
+    try {
+      const parseResult = z.object({
+        enabled: z.boolean(),
+        disabledReason: z.string().optional(),
+        updatedBy: z.string().min(1),
+      }).safeParse(req.body);
+
+      if (!parseResult.success) {
+        return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
+      }
+
+      const { enabled, disabledReason, updatedBy } = parseResult.data;
+
+      const existing = await db.select().from(automationSettings).limit(1);
+      if (existing.length === 0) {
+        const [created] = await db.insert(automationSettings).values({
+          enabled,
+          disabledReason: disabledReason || null,
+          updatedBy,
+        }).returning();
+        return res.json(created);
+      }
+
+      const [updated] = await db
+        .update(automationSettings)
+        .set({ enabled, disabledReason: disabledReason || null, updatedBy, updatedAt: new Date() })
+        .where(eq(automationSettings.settingsId, existing[0].settingsId))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating automation settings:", error);
+      res.status(500).json({ error: "Failed to update automation settings" });
     }
   });
 

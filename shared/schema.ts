@@ -207,6 +207,69 @@ export type Principle = typeof principle.$inferSelect;
 export type Rule = typeof rule.$inferSelect;
 export type DecisionRuleHit = typeof decisionRuleHit.$inferSelect;
 
+// ===== Company Brain v3 (controlled actions + approvals) =====
+// Backend-only. No autonomous execution. All actions require human approval.
+
+export const action = pgTable("action", {
+  actionId: uuid("action_id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id"),
+  name: text("name").notNull(),
+  actionType: text("action_type").notNull(),
+  description: text("description"),
+  reversible: boolean("reversible").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  params: jsonb("params").notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const actionProposal = pgTable("action_proposal", {
+  proposalId: uuid("proposal_id").defaultRandom().primaryKey(),
+  decisionId: uuid("decision_id").notNull(),
+  ruleId: uuid("rule_id").notNull(),
+  actionId: uuid("action_id"),
+  ruleOutcome: text("rule_outcome").notNull(),
+  status: text("status").notNull().default("pending"),
+  metadata: jsonb("metadata").notNull().default({}),
+  requestedByActor: text("requested_by_actor").notNull().default("system"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const actionApproval = pgTable("action_approval", {
+  approvalId: uuid("approval_id").defaultRandom().primaryKey(),
+  proposalId: uuid("proposal_id").notNull(),
+  approverId: text("approver_id").notNull(),
+  approverRole: text("approver_role").notNull(),
+  status: text("status").notNull(),
+  reason: text("reason"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const actionExecution = pgTable("action_execution", {
+  executionId: uuid("execution_id").defaultRandom().primaryKey(),
+  proposalId: uuid("proposal_id").notNull(),
+  executedBy: text("executed_by").notNull(),
+  status: text("status").notNull(),
+  result: jsonb("result").notNull().default({}),
+  executedAt: timestamp("executed_at", { withTimezone: true }).defaultNow().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const automationSettings = pgTable("automation_settings", {
+  settingsId: uuid("settings_id").defaultRandom().primaryKey(),
+  orgId: uuid("org_id"),
+  enabled: boolean("enabled").notNull().default(false),
+  disabledReason: text("disabled_reason"),
+  updatedBy: text("updated_by"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type Action = typeof action.$inferSelect;
+export type ActionProposal = typeof actionProposal.$inferSelect;
+export type ActionApproval = typeof actionApproval.$inferSelect;
+export type ActionExecution = typeof actionExecution.$inferSelect;
+export type AutomationSettings = typeof automationSettings.$inferSelect;
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
 export const insertTeamSchema = createInsertSchema(teams).omit({ id: true, createdAt: true });

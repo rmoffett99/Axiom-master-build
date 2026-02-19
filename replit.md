@@ -122,6 +122,18 @@ npm run db:push  # Push schema changes
 - Status: Planning document only — not implemented, no current app changes
 
 ## Recent Changes
+- 2026-02-19: Company Brain v3 — controlled actions + approvals
+  - Added 5 new tables: action, action_proposal, action_approval, action_execution, automation_settings
+  - action: registry of action types (send_email, block_payment, etc.) with reversible flag
+  - action_proposal: generated when rule outcome = require_review or block; status lifecycle: pending → approved/rejected → executed/expired
+  - action_approval: human sign-off records with role-based validation
+  - action_execution: execution results with kill switch check
+  - automation_settings: global kill switch (enabled/disabled with reason + actor)
+  - Created server/actionProposals.ts: proposeActionsForRuleHits, approveActionProposal, executeApprovedAction
+  - proposeActionsForRuleHits chained at end of runRules — fire-and-forget, fail-silent
+  - New API routes under /api/brain/*: GET proposals, POST approve, POST execute, GET/PATCH automation settings
+  - No UI changes, no behavior changes to existing demo — backend infrastructure only
+  - Master work order stored at: attached_assets/Pasted-AXIOM-COMPANY-BRAIN-MASTER-IMPLEMENTATION-WORK-ORDER-FI_1771512188221.txt
 - 2026-02-09: Company Brain v2 — principles, rules engine, rule hits
   - Added 3 new tables: principle, rule, decision_rule_hit (all uuid PKs, defaultRandom())
   - principle: org-scoped guiding statements with priority and domain

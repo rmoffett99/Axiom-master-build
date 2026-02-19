@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { rule, decisionRuleHit } from "@shared/schema";
 import { eq, and, type SQL } from "drizzle-orm";
+import { proposeActionsForRuleHits } from "./actionProposals";
 
 type RunRulesInput = {
   decisionId: string;
@@ -42,6 +43,8 @@ export async function runRules(input: RunRulesInput): Promise<void> {
         hitDetails: details,
       });
     }
+
+    proposeActionsForRuleHits({ decisionId, orgId, domain, metadata }).catch(() => {});
   } catch {
     // fail silently
   }
