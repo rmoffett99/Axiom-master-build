@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb, getCurrentOrgId } from "./rls";
 import {
   decisionLog,
   decisionReasoning,
@@ -38,7 +38,7 @@ type LogDecisionInput = {
 export async function logDecision(input: LogDecisionInput): Promise<string | null> {
   try {
     const {
-      organizationId = null,
+      organizationId,
       decisionType,
       sourceModule,
       subjectType,
@@ -51,10 +51,12 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
       auditSnapshot = {},
     } = input;
 
-    const [decision] = await db
+    const orgId = organizationId || getCurrentOrgId() || '';
+
+    const [decision] = await getDb()
       .insert(decisionLog)
       .values({
-        organizationId,
+        organizationId: orgId,
         decisionType,
         sourceModule,
         subjectType,
@@ -66,14 +68,16 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     if (!decision?.decisionId) return null;
 
     if (summaryText && summaryText.trim().length > 0) {
-      await db.insert(decisionReasoning).values({
+      await getDb().insert(decisionReasoning).values({
+        organizationId: orgId,
         decisionId: decision.decisionId,
         summaryText,
         confidenceScore,
       });
     }
 
-    await db.insert(decisionAudit).values({
+    await getDb().insert(decisionAudit).values({
+      organizationId: orgId,
       decisionId: decision.decisionId,
       eventType,
       actor,
@@ -100,7 +104,7 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     try {
       const pFilters: SQL[] = [eq(principle.isActive, true)];
       if (domain !== "general") pFilters.push(eq(principle.domain, domain));
-      activePrinciples = await db
+      activePrinciples = await getDb()
         .select({ principleId: principle.principleId, priority: principle.priority })
         .from(principle)
         .where(and(...pFilters));
@@ -119,7 +123,7 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
     try {
       const rFilters: SQL[] = [eq(rule.domain, domain), eq(rule.isActive, true)];
       if (organizationId) rFilters.push(eq(rule.organizationId, organizationId));
-      const activeRules = await db.select().from(rule).where(and(...rFilters));
+      const activeRules = await getDb().select().from(rule).where(and(...rFilters));
 
       for (const r of activeRules) {
         let hit = false;
@@ -188,9 +192,10 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
       validatedAssumptionCount: 0,
     });
 
-    const [brainRecord] = await db
+    const [brainRecord] = await getDb()
       .insert(brainDecision)
       .values({
+        organizationId: orgId,
         domain,
         subjectType,
         subjectId,
@@ -212,7 +217,8 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
       .returning({ id: brainDecision.id });
 
     if (brainRecord?.id) {
-      await db.insert(decisionInputSnapshot).values({
+      await getDb().insert(decisionInputSnapshot).values({
+        organizationId: orgId,
         decisionId: brainRecord.id,
         inputJson,
         hash: snapshotHash,
@@ -220,8 +226,9 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
       });
 
       if (ruleHitInserts.length > 0) {
-        await db.insert(decisionRuleHit).values(
+        await getDb().insert(decisionRuleHit).values(
           ruleHitInserts.map((r) => ({
+            organizationId: orgId,
             decisionId: brainRecord.id,
             ruleId: r.ruleId,
             ruleVersion: r.ruleVersion,
@@ -235,8 +242,9 @@ export async function logDecision(input: LogDecisionInput): Promise<string | nul
       }
 
       if (principleRecords.length > 0) {
-        await db.insert(principlesApplied).values(
+        await getDb().insert(principlesApplied).values(
           principleRecords.map((p) => ({
+            organizationId: orgId,
             decisionId: brainRecord.id,
             principleId: p.principleId,
             principleVersion: "v1.0",

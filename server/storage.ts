@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb, getCurrentOrgId } from "./rls";
 import { eq, desc, and, lte, gte, sql } from "drizzle-orm";
 import {
   users,
@@ -91,24 +91,24 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // Organizations
   async getOrganizations(): Promise<Organization[]> {
-    return db.select().from(organizations);
+    return getDb().select().from(organizations);
   }
 
   async getOrganizationBySlug(slug: string): Promise<Organization | undefined> {
-    const [org] = await db.select().from(organizations).where(eq(organizations.slug, slug));
+    const [org] = await getDb().select().from(organizations).where(eq(organizations.slug, slug));
     return org;
   }
 
   async getOrganization(id: string): Promise<Organization | undefined> {
-    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
+    const [org] = await getDb().select().from(organizations).where(eq(organizations.id, id));
     return org;
   }
 
   async getUserOrganizations(userId: string): Promise<(UserOrganization & { organization: Organization })[]> {
-    const memberships = await db.select().from(userOrganizations).where(eq(userOrganizations.userId, userId));
+    const memberships = await getDb().select().from(userOrganizations).where(eq(userOrganizations.userId, userId));
     const result: (UserOrganization & { organization: Organization })[] = [];
     for (const m of memberships) {
-      const [org] = await db.select().from(organizations).where(eq(organizations.id, m.organizationId));
+      const [org] = await getDb().select().from(organizations).where(eq(organizations.id, m.organizationId));
       if (org) result.push({ ...m, organization: org });
     }
     return result;
@@ -116,42 +116,42 @@ export class DatabaseStorage implements IStorage {
 
   // Users
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const [user] = await getDb().select().from(users).where(eq(users.id, id));
     return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    const [user] = await getDb().select().from(users).where(eq(users.username, username));
     return user;
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
+    const [newUser] = await getDb().insert(users).values(user).returning();
     return newUser;
   }
 
   async getAllUsers(organizationId: string): Promise<User[]> {
-    return db.select().from(users).where(eq(users.organizationId, organizationId));
+    return getDb().select().from(users).where(eq(users.organizationId, organizationId));
   }
 
   // Teams
   async getTeam(id: string): Promise<Team | undefined> {
-    const [team] = await db.select().from(teams).where(eq(teams.id, id));
+    const [team] = await getDb().select().from(teams).where(eq(teams.id, id));
     return team;
   }
 
   async createTeam(team: InsertTeam): Promise<Team> {
-    const [newTeam] = await db.insert(teams).values(team).returning();
+    const [newTeam] = await getDb().insert(teams).values(team).returning();
     return newTeam;
   }
 
   async getAllTeams(organizationId: string): Promise<Team[]> {
-    return db.select().from(teams).where(eq(teams.organizationId, organizationId));
+    return getDb().select().from(teams).where(eq(teams.organizationId, organizationId));
   }
 
   // Decisions
   async getDecision(id: string): Promise<DecisionWithDetails | undefined> {
-    const [decision] = await db.select().from(decisions).where(eq(decisions.id, id));
+    const [decision] = await getDb().select().from(decisions).where(eq(decisions.id, id));
     if (!decision) return undefined;
 
     const owner = decision.ownerId ? await this.getUser(decision.ownerId) : undefined;
@@ -161,17 +161,17 @@ export class DatabaseStorage implements IStorage {
     
     let currentVersion: DecisionVersion | undefined;
     if (decision.currentVersionId) {
-      const [version] = await db.select().from(decisionVersions).where(eq(decisionVersions.id, decision.currentVersionId));
+      const [version] = await getDb().select().from(decisionVersions).where(eq(decisionVersions.id, decision.currentVersionId));
       currentVersion = version;
     }
 
-    const allVersions = await db
+    const allVersions = await getDb()
       .select()
       .from(decisionVersions)
       .where(eq(decisionVersions.decisionId, id))
       .orderBy(desc(decisionVersions.versionNumber));
 
-    const evidenceList = await db
+    const evidenceList = await getDb()
       .select()
       .from(evidenceLinks)
       .where(eq(evidenceLinks.decisionId, id));
@@ -190,7 +190,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllDecisions(organizationId: string): Promise<DecisionWithDetails[]> {
-    const allDecisions = await db
+    const allDecisions = await getDb()
       .select()
       .from(decisions)
       .where(eq(decisions.organizationId, organizationId))
@@ -221,40 +221,38 @@ export class DatabaseStorage implements IStorage {
     version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">,
     assumptionsList: Omit<InsertAssumption, "decisionId">[]
   ): Promise<Decision> {
-    const [newDecision] = await db
+    const [newDecision] = await getDb()
       .insert(decisions)
       .values({
         ...decision,
-        organizationId,
         status: "published",
         publishedAt: new Date(),
       })
       .returning();
 
-    const [newVersion] = await db
+    const [newVersion] = await getDb()
       .insert(decisionVersions)
       .values({
         decisionId: newDecision.id,
-        organizationId,
         versionNumber: 1,
         ...version,
       })
       .returning();
 
-    await db
+    await getDb()
       .update(decisions)
       .set({ currentVersionId: newVersion.id })
       .where(eq(decisions.id, newDecision.id));
 
     for (const assumption of assumptionsList) {
-      await db.insert(assumptions).values({
+      await getDb().insert(assumptions).values({
         decisionId: newDecision.id,
-        organizationId,
         ...assumption,
       });
     }
 
     await this.createAuditLog({
+      organizationId,
       userId: decision.ownerId,
       action: "decision_created",
       entityType: "decision",
@@ -269,10 +267,10 @@ export class DatabaseStorage implements IStorage {
     decisionId: string,
     version: Omit<InsertDecisionVersion, "decisionId" | "versionNumber">
   ): Promise<DecisionVersion> {
-    const [existingDecision] = await db.select().from(decisions).where(eq(decisions.id, decisionId));
-    const orgId = existingDecision?.organizationId || null;
+    const [existingDecision] = await getDb().select().from(decisions).where(eq(decisions.id, decisionId));
+    const orgId = existingDecision?.organizationId || getCurrentOrgId() || '';
 
-    const existingVersions = await db
+    const existingVersions = await getDb()
       .select()
       .from(decisionVersions)
       .where(eq(decisionVersions.decisionId, decisionId))
@@ -282,22 +280,22 @@ export class DatabaseStorage implements IStorage {
       ? existingVersions[0].versionNumber + 1 
       : 1;
 
-    const [newVersion] = await db
+    const [newVersion] = await getDb()
       .insert(decisionVersions)
       .values({
         decisionId,
-        organizationId: orgId,
         versionNumber: nextVersionNumber,
         ...version,
       })
       .returning();
 
-    await db
+    await getDb()
       .update(decisions)
       .set({ currentVersionId: newVersion.id })
       .where(eq(decisions.id, decisionId));
 
     await this.createAuditLog({
+      organizationId: orgId,
       userId: version.authorId,
       action: "decision_amended",
       entityType: "decision",
@@ -309,13 +307,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDecisionDebtScore(decisionId: string, score: number): Promise<void> {
-    await db
+    await getDb()
       .update(decisions)
       .set({ debtScore: score })
       .where(eq(decisions.id, decisionId));
 
-    await db.insert(decisionDebtScores).values({
+    await getDb().insert(decisionDebtScores).values({
       decisionId,
+      organizationId: getCurrentOrgId()!,
       score,
       factors: {},
     });
@@ -323,12 +322,12 @@ export class DatabaseStorage implements IStorage {
 
   // Assumptions
   async getAssumption(id: string): Promise<Assumption | undefined> {
-    const [assumption] = await db.select().from(assumptions).where(eq(assumptions.id, id));
+    const [assumption] = await getDb().select().from(assumptions).where(eq(assumptions.id, id));
     return assumption;
   }
 
   async updateAssumptionStatus(id: string, status: string, validatedById: string): Promise<Assumption> {
-    const [updated] = await db
+    const [updated] = await getDb()
       .update(assumptions)
       .set({
         status: status as "valid" | "expired" | "invalidated" | "pending_review",
@@ -341,6 +340,7 @@ export class DatabaseStorage implements IStorage {
     const assumption = await this.getAssumption(id);
     if (assumption) {
       await this.createAuditLog({
+        organizationId: assumption.organizationId,
         userId: validatedById,
         action: "assumption_status_changed",
         entityType: "assumption",
@@ -353,7 +353,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAssumptionsByDecision(decisionId: string): Promise<Assumption[]> {
-    return db
+    return getDb()
       .select()
       .from(assumptions)
       .where(eq(assumptions.decisionId, decisionId));
@@ -361,7 +361,7 @@ export class DatabaseStorage implements IStorage {
 
   // Alerts
   async getAllAlerts(organizationId: string): Promise<(Alert & { decision?: Decision })[]> {
-    const allAlerts = await db
+    const allAlerts = await getDb()
       .select()
       .from(alerts)
       .where(eq(alerts.organizationId, organizationId))
@@ -369,7 +369,7 @@ export class DatabaseStorage implements IStorage {
 
     const result: (Alert & { decision?: Decision })[] = [];
     for (const alert of allAlerts) {
-      const [decision] = await db.select().from(decisions).where(
+      const [decision] = await getDb().select().from(decisions).where(
         and(eq(decisions.id, alert.decisionId), eq(decisions.organizationId, organizationId))
       );
       result.push({ ...alert, decision });
@@ -379,7 +379,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAlertsByDecision(decisionId: string): Promise<Alert[]> {
-    return db
+    return getDb()
       .select()
       .from(alerts)
       .where(eq(alerts.decisionId, decisionId))
@@ -387,12 +387,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createAlert(alert: InsertAlert): Promise<Alert> {
-    const [newAlert] = await db.insert(alerts).values(alert).returning();
+    const [newAlert] = await getDb().insert(alerts).values(alert).returning();
     return newAlert;
   }
 
   async acknowledgeAlert(alertId: string, userId: string): Promise<Alert> {
-    const [updated] = await db
+    const [updated] = await getDb()
       .update(alerts)
       .set({
         acknowledgedAt: new Date(),
@@ -402,6 +402,7 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     await this.createAuditLog({
+      organizationId: getCurrentOrgId()!,
       userId,
       action: "alert_acknowledged",
       entityType: "alert",
@@ -428,7 +429,7 @@ export class DatabaseStorage implements IStorage {
       ? Math.round(allDecisions.reduce((sum, d) => sum + (d.debtScore || 0), 0) / allDecisions.length)
       : 0;
 
-    const allAlerts = await db
+    const allAlerts = await getDb()
       .select()
       .from(alerts)
       .where(and(
@@ -446,7 +447,7 @@ export class DatabaseStorage implements IStorage {
       return reviewDate <= thirtyDaysFromNow && reviewDate > new Date();
     }).length;
 
-    const historicalScores = await db
+    const historicalScores = await getDb()
       .select()
       .from(decisionDebtScores)
       .orderBy(desc(decisionDebtScores.calculatedAt));
@@ -503,7 +504,7 @@ export class DatabaseStorage implements IStorage {
 
   // Audit
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
-    const [newLog] = await db.insert(auditLogs).values(log).returning();
+    const [newLog] = await getDb().insert(auditLogs).values(log).returning();
     return newLog;
   }
 }

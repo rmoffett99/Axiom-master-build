@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb, getCurrentOrgId } from "./rls";
 import {
   rule,
   decisionRuleHit,
@@ -20,7 +20,7 @@ export async function proposeActionsForRuleHits(input: ProposeInput): Promise<vo
   try {
     const { decisionId, organizationId = null, domain } = input;
 
-    const hits = await db
+    const hits = await getDb()
       .select({
         hitId: decisionRuleHit.hitId,
         ruleId: decisionRuleHit.ruleId,
@@ -44,7 +44,8 @@ export async function proposeActionsForRuleHits(input: ProposeInput): Promise<vo
 
       const params = (h.ruleParams ?? {}) as Record<string, unknown>;
 
-      await db.insert(actionProposal).values({
+      await getDb().insert(actionProposal).values({
+        organizationId: organizationId || getCurrentOrgId() || '',
         decisionId,
         ruleId: h.ruleId,
         actionId: (params.actionId as string) || null,
@@ -76,7 +77,7 @@ export async function approveActionProposal(input: ApproveInput): Promise<{ prop
   try {
     const { proposalId, approverId, approverRole, status, reason } = input;
 
-    const [proposal] = await db
+    const [proposal] = await getDb()
       .select()
       .from(actionProposal)
       .where(eq(actionProposal.proposalId, proposalId));
@@ -84,7 +85,8 @@ export async function approveActionProposal(input: ApproveInput): Promise<{ prop
     if (!proposal) return null;
     if (proposal.status !== "pending") return null;
 
-    await db.insert(actionApproval).values({
+    await getDb().insert(actionApproval).values({
+      organizationId: proposal.organizationId || getCurrentOrgId()!,
       proposalId,
       approverId,
       approverRole,
@@ -92,7 +94,7 @@ export async function approveActionProposal(input: ApproveInput): Promise<{ prop
       reason: reason || null,
     });
 
-    await db
+    await getDb()
       .update(actionProposal)
       .set({ status })
       .where(eq(actionProposal.proposalId, proposalId));
@@ -112,17 +114,18 @@ export async function executeApprovedAction(input: ExecuteInput): Promise<{ exec
   try {
     const { proposalId, executedBy } = input;
 
-    const settings = await db.select().from(automationSettings).limit(1);
+    const settings = await getDb().select().from(automationSettings).limit(1);
     const globalEnabled = settings.length > 0 ? settings[0].enabled : false;
     if (!globalEnabled) {
-      await db.insert(actionExecution).values({
+      await getDb().insert(actionExecution).values({
+        organizationId: getCurrentOrgId()!,
         proposalId,
         executedBy,
         status: "skipped",
         result: { reason: "automation_disabled" },
       });
 
-      await db
+      await getDb()
         .update(actionProposal)
         .set({ status: "expired" })
         .where(eq(actionProposal.proposalId, proposalId));
@@ -130,7 +133,7 @@ export async function executeApprovedAction(input: ExecuteInput): Promise<{ exec
       return { executionId: "", status: "skipped" };
     }
 
-    const [proposal] = await db
+    const [proposal] = await getDb()
       .select()
       .from(actionProposal)
       .where(eq(actionProposal.proposalId, proposalId));
@@ -138,9 +141,10 @@ export async function executeApprovedAction(input: ExecuteInput): Promise<{ exec
     if (!proposal) return null;
     if (proposal.status !== "approved") return null;
 
-    const [execution] = await db
+    const [execution] = await getDb()
       .insert(actionExecution)
       .values({
+        organizationId: proposal.organizationId || getCurrentOrgId()!,
         proposalId,
         executedBy,
         status: "success",
@@ -148,7 +152,7 @@ export async function executeApprovedAction(input: ExecuteInput): Promise<{ exec
       })
       .returning({ executionId: actionExecution.executionId });
 
-    await db
+    await getDb()
       .update(actionProposal)
       .set({ status: "executed" })
       .where(eq(actionProposal.proposalId, proposalId));

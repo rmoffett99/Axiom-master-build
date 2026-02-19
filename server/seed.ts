@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb, withOrgContext } from "./rls";
 import { 
   users, 
   teams, 
@@ -15,11 +15,13 @@ const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
 export async function seedDatabase() {
   console.log("Checking if database needs seeding...");
 
-  const existingUsers = await db.select().from(users);
-  if (existingUsers.length > 0) {
-    console.log("Database already has data, skipping seed.");
-    return;
-  }
+  return withOrgContext(DEFAULT_ORG_ID, async () => {
+    const db = getDb();
+    const existingUsers = await db.select().from(users);
+    if (existingUsers.length > 0) {
+      console.log("Database already has data, skipping seed.");
+      return;
+    }
 
   console.log("Seeding database with initial data...");
 
@@ -290,4 +292,5 @@ export async function seedDatabase() {
   ]);
 
   console.log("Database seeded successfully!");
+  });
 }

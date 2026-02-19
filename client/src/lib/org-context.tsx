@@ -1,7 +1,7 @@
-import { createContext, useContext, useEffect, useMemo } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useRoute } from "wouter";
-import { setCurrentOrgId } from "./org-state";
+import { getCurrentOrgId, setCurrentOrgId } from "./org-state";
 import { queryClient } from "./queryClient";
 
 interface Organization {
@@ -32,9 +32,19 @@ export function useOrg() {
   return useContext(OrgContext);
 }
 
+function clearOrgScopedQueries() {
+  queryClient.removeQueries({
+    predicate: (query) => {
+      const key = query.queryKey[0];
+      return typeof key === "string" && key !== "/api/organizations";
+    },
+  });
+}
+
 export function OrgProvider({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const [isOrgRoute, params] = useRoute("/org/:orgSlug/*?");
+  const prevOrgIdRef = useRef<string | null>(null);
 
   const { data: organizations = [], isLoading } = useQuery<Organization[]>({
     queryKey: ["/api/organizations"],
@@ -47,11 +57,19 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     return organizations.find((o) => o.slug === activeOrgSlug) || null;
   }, [activeOrgSlug, organizations]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (activeOrg) {
-      setCurrentOrgId(activeOrg.id);
-    } else if (organizations.length > 0 && !isOrgRoute) {
+      const prevId = prevOrgIdRef.current;
+      if (getCurrentOrgId() !== activeOrg.id) {
+        setCurrentOrgId(activeOrg.id);
+        if (prevId && prevId !== activeOrg.id) {
+          clearOrgScopedQueries();
+        }
+      }
+      prevOrgIdRef.current = activeOrg.id;
+    } else if (!isOrgRoute && organizations.length > 0 && !getCurrentOrgId()) {
       setCurrentOrgId(organizations[0].id);
+      prevOrgIdRef.current = organizations[0].id;
     }
   }, [activeOrg, organizations, isOrgRoute]);
 
@@ -65,13 +83,16 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
 
   const switchOrg = (slug: string) => {
     const currentSubPath = isOrgRoute && params?.["*"] ? params["*"] : "dashboard";
-    setLocation(`/org/${slug}/${currentSubPath}`);
     const newOrg = organizations.find((o) => o.slug === slug);
     if (newOrg) {
       setCurrentOrgId(newOrg.id);
+      prevOrgIdRef.current = newOrg.id;
     }
-    queryClient.invalidateQueries();
+    clearOrgScopedQueries();
+    setLocation(`/org/${slug}/${currentSubPath}`);
   };
+
+  const showLoading = isOrgRoute && (isLoading || !activeOrg);
 
   return (
     <OrgContext.Provider
@@ -83,7 +104,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         switchOrg,
       }}
     >
-      {children}
+      {showLoading ? null : children}
     </OrgContext.Provider>
   );
 }

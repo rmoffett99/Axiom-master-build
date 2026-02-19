@@ -6,7 +6,7 @@ import { logDecision } from "./logDecision";
 import { approveActionProposal, executeApprovedAction } from "./actionProposals";
 import { replayDecision } from "./replayEngine";
 import { computeBundleHash } from "./brainIntegrity";
-import { db } from "./db";
+import { getDb, rlsMiddleware } from "./rls";
 import {
   actionProposal,
   automationSettings,
@@ -56,6 +56,8 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.use("/api", rlsMiddleware());
 
   async function resolveOrgId(req: any): Promise<string> {
     const orgId = req.query.orgId || req.headers['x-organization-id'];
@@ -167,6 +169,7 @@ export async function registerRoutes(
       const decision = await storage.createDecision(
         orgId,
         {
+          organizationId: orgId,
           title,
           ownerId,
           teamId: teamId || null,
@@ -174,6 +177,7 @@ export async function registerRoutes(
           reviewByDate: reviewByDate ? new Date(reviewByDate) : null,
         },
         {
+          organizationId: orgId,
           title,
           context,
           rationale,
@@ -183,6 +187,7 @@ export async function registerRoutes(
           authorId: ownerId,
         },
         validAssumptions.map((a: { description: string; validUntil?: string }) => ({
+          organizationId: orgId,
           description: a.description,
           status: "valid" as const,
           validUntil: a.validUntil ? new Date(a.validUntil) : null,
@@ -228,7 +233,10 @@ export async function registerRoutes(
         return res.status(404).json({ error: "Decision not found" });
       }
 
+      const orgId = await resolveOrgId(req);
+
       const version = await storage.amendDecision(req.params.id, {
+        organizationId: orgId,
         title: title || decision.title,
         context,
         rationale,
@@ -237,8 +245,6 @@ export async function registerRoutes(
         risks: risks || null,
         authorId,
       });
-
-      const orgId = await resolveOrgId(req);
 
       logDecision({
         organizationId: orgId,
@@ -384,7 +390,7 @@ export async function registerRoutes(
       const statusParam = z.enum(["pending", "approved", "rejected", "executed", "expired"]).optional().safeParse(req.query.status);
       const status = statusParam.success ? statusParam.data : undefined;
       const filters = status ? eq(actionProposal.status, status) : undefined;
-      const proposals = await db.select().from(actionProposal).where(filters).orderBy(actionProposal.createdAt);
+      const proposals = await getDb().select().from(actionProposal).where(filters).orderBy(actionProposal.createdAt);
       res.json(proposals);
     } catch (error) {
       console.error("Error fetching proposals:", error);
@@ -449,7 +455,7 @@ export async function registerRoutes(
 
   app.get("/api/brain/automation", async (req, res) => {
     try {
-      const settings = await db.select().from(automationSettings).limit(1);
+      const settings = await getDb().select().from(automationSettings).limit(1);
       if (settings.length === 0) {
         return res.json({ enabled: false, disabledReason: "not_configured" });
       }
@@ -474,9 +480,12 @@ export async function registerRoutes(
 
       const { enabled, disabledReason, updatedBy } = parseResult.data;
 
-      const existing = await db.select().from(automationSettings).limit(1);
+      const orgId = await resolveOrgId(req);
+
+      const existing = await getDb().select().from(automationSettings).limit(1);
       if (existing.length === 0) {
-        const [created] = await db.insert(automationSettings).values({
+        const [created] = await getDb().insert(automationSettings).values({
+          organizationId: orgId,
           enabled,
           disabledReason: disabledReason || null,
           updatedBy,
@@ -484,7 +493,7 @@ export async function registerRoutes(
         return res.json(created);
       }
 
-      const [updated] = await db
+      const [updated] = await getDb()
         .update(automationSettings)
         .set({ enabled, disabledReason: disabledReason || null, updatedBy, updatedAt: new Date() })
         .where(eq(automationSettings.settingsId, existing[0].settingsId))
@@ -526,7 +535,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
       }
 
-      const [log] = await db.insert(auditAccessLog).values({
+      const orgId = await resolveOrgId(req);
+      const [log] = await getDb().insert(auditAccessLog).values({
+        organizationId: orgId,
         userId: parseResult.data.userId,
         decisionId: parseResult.data.decisionId,
         ipAddress: parseResult.data.ipAddress || null,
@@ -568,16 +579,16 @@ export async function registerRoutes(
 
       const { decisionId, exportType, exportPurpose, generatedBy } = parseResult.data;
 
-      const [decision] = await db.select().from(brainDecision).where(eq(brainDecision.id, decisionId));
+      const [decision] = await getDb().select().from(brainDecision).where(eq(brainDecision.id, decisionId));
       if (!decision) {
         return res.status(404).json({ error: "Decision not found" });
       }
 
-      const snapshots = await db.select().from(decisionInputSnapshot).where(eq(decisionInputSnapshot.decisionId, decisionId));
-      const rules = await db.select().from(decisionRuleHit).where(eq(decisionRuleHit.decisionId, decisionId));
-      const principles = await db.select().from(principlesApplied).where(eq(principlesApplied.decisionId, decisionId));
-      const overrides = await db.select().from(overrideHistory).where(eq(overrideHistory.decisionId, decisionId));
-      const assumptions = await db.select().from(assumptionValidationHistory).where(eq(assumptionValidationHistory.decisionId, decisionId));
+      const snapshots = await getDb().select().from(decisionInputSnapshot).where(eq(decisionInputSnapshot.decisionId, decisionId));
+      const rules = await getDb().select().from(decisionRuleHit).where(eq(decisionRuleHit.decisionId, decisionId));
+      const principles = await getDb().select().from(principlesApplied).where(eq(principlesApplied.decisionId, decisionId));
+      const overrides = await getDb().select().from(overrideHistory).where(eq(overrideHistory.decisionId, decisionId));
+      const assumptions = await getDb().select().from(assumptionValidationHistory).where(eq(assumptionValidationHistory.decisionId, decisionId));
 
       const exportTimestamp = new Date().toISOString();
 
@@ -604,7 +615,9 @@ export async function registerRoutes(
 
       const exportFileSize = Buffer.byteLength(exportData, "utf8");
 
-      const [exportLog] = await db.insert(auditExportLog).values({
+      const orgId = await resolveOrgId(req);
+      const [exportLog] = await getDb().insert(auditExportLog).values({
+        organizationId: orgId,
         decisionId,
         exportType,
         exportPurpose,
@@ -643,7 +656,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
       }
 
-      const [record] = await db.insert(overrideHistory).values({
+      const orgId = await resolveOrgId(req);
+      const [record] = await getDb().insert(overrideHistory).values({
+        organizationId: orgId,
         ...parseResult.data,
         createdAt: new Date(),
       }).returning();
@@ -671,7 +686,9 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Validation failed", details: parseResult.error.errors });
       }
 
-      const [record] = await db.insert(assumptionValidationHistory).values({
+      const orgId = await resolveOrgId(req);
+      const [record] = await getDb().insert(assumptionValidationHistory).values({
+        organizationId: orgId,
         ...parseResult.data,
         validatedAt: new Date(),
       }).returning();

@@ -1,0 +1,193 @@
+AXIOM — ENTERPRISE ACCESS CONTROL + AGENT SAFETY + AUDIT TRAILS
+
+============================================================
+1) ORGANIZATION ROLES & PERMISSIONS
+============================================================
+
+GOAL:
+Clear authority, least-privilege access, enterprise trust.
+
+------------------------------------------------------------
+1.1 ROLES (AXIOM STANDARD)
+------------------------------------------------------------
+
+ROLES:
+- OWNER     → Full control, billing, org structure
+- EXEC      → Cross-org read (if enabled), strategy, exports
+- ANALYST   → Create decisions, run analyses, view results
+- AGENT     → Execute runs only, no visibility outside scope
+- VIEWER    → Read-only dashboards
+
+------------------------------------------------------------
+1.2 ORG MEMBERSHIP TABLE
+------------------------------------------------------------
+
+CREATE TABLE organization_members (
+  id UUID PRIMARY KEY,
+  organization_id UUID NOT NULL REFERENCES organizations(id),
+  user_id UUID NOT NULL REFERENCES users(id),
+  role TEXT CHECK (role IN ('owner','exec','analyst','agent','viewer')),
+  created_at TIMESTAMP DEFAULT now(),
+  UNIQUE (organization_id, user_id)
+);
+
+------------------------------------------------------------
+1.3 PERMISSION RULES (DEFAULT)
+------------------------------------------------------------
+
+OWNER:
+- All permissions
+
+EXEC:
+- Read all org data
+- Read subsidiary data (if hierarchy enabled)
+- No destructive actions
+
+ANALYST:
+- Create / run decisions
+- View org-local data only
+- No exports unless granted
+
+AGENT:
+- Execute assigned runs
+- NO raw data browsing
+- NO cross-org access
+
+VIEWER:
+- Read dashboards only
+
+============================================================
+2) AI AGENT ORG-CONTEXT INHERITANCE
+============================================================
+
+GOAL:
+Agents must NEVER escape their organization boundary.
+
+------------------------------------------------------------
+2.1 AGENT CONTEXT RULE
+------------------------------------------------------------
+
+EVERY agent execution MUST receive:
+- organization_id
+- agent_role
+- execution_scope
+
+NO defaults.
+NO fallbacks.
+NO globals.
+
+------------------------------------------------------------
+2.2 AGENT EXECUTION CONTRACT
+------------------------------------------------------------
+
+{
+  agentId,
+  organizationId,
+  role,
+  permissions,
+  allowedResources[]
+}
+
+If organizationId is missing → ABORT.
+
+------------------------------------------------------------
+2.3 AGENT DATABASE SAFETY
+------------------------------------------------------------
+
+Before agent executes ANY query:
+
+SELECT set_config('axiom.current_org', :organizationId, true);
+
+RLS ENFORCES ISOLATION.
+Agent CANNOT override org context.
+
+------------------------------------------------------------
+2.4 AGENT HARD LIMITS
+------------------------------------------------------------
+
+- Agents CANNOT switch organizations
+- Agents CANNOT read parent org unless explicitly allowed
+- Agents CANNOT access raw tables without RLS
+- Agents CANNOT export data unless role permits
+
+============================================================
+3) AUDIT TRAILS (ENTERPRISE TRUST LAYER)
+============================================================
+
+GOAL:
+Every action is traceable, reviewable, and defensible.
+
+------------------------------------------------------------
+3.1 AUDIT EVENTS TABLE
+------------------------------------------------------------
+
+CREATE TABLE audit_events (
+  id UUID PRIMARY KEY,
+  organization_id UUID NOT NULL,
+  user_id UUID NULL,
+  agent_id UUID NULL,
+  action TEXT NOT NULL,
+  resource_type TEXT,
+  resource_id UUID,
+  metadata JSONB,
+  created_at TIMESTAMP DEFAULT now()
+);
+
+------------------------------------------------------------
+3.2 WHAT MUST BE AUDITED
+------------------------------------------------------------
+
+- Decision creation
+- Decision execution
+- Agent runs
+- Data exports
+- Org role changes
+- Org hierarchy changes
+- Auth failures
+- Cross-org reads (if enabled)
+
+------------------------------------------------------------
+3.3 AUDIT WRITE RULE
+------------------------------------------------------------
+
+Audit writes are:
+- APPEND ONLY
+- NEVER UPDATED
+- NEVER DELETED
+
+Optional immutability trigger recommended.
+
+------------------------------------------------------------
+3.4 RLS FOR AUDIT LOGS
+------------------------------------------------------------
+
+ALTER TABLE audit_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY audit_org_isolation
+ON audit_events
+USING (
+  organization_id = current_setting('axiom.current_org')::uuid
+);
+
+============================================================
+4) NON-NEGOTIABLE AXIOM RULES
+============================================================
+
+- Every request has organizationId
+- Every agent inherits organizationId
+- Every DB session sets axiom.current_org
+- RLS protects all tenant data
+- Audit logs record all critical actions
+- Missing org context = HARD FAILURE
+
+============================================================
+5) RESULT
+============================================================
+
+✓ Enterprise-grade access control
+✓ Safe AI agent execution
+✓ Zero data bleed
+✓ Full accountability
+✓ Audit-ready for large customers
+
+END

@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb, getCurrentOrgId } from "./rls";
 import { rule, decisionRuleHit } from "@shared/schema";
 import { eq, and, type SQL } from "drizzle-orm";
 import { proposeActionsForRuleHits } from "./actionProposals";
@@ -17,7 +17,7 @@ export async function runRules(input: RunRulesInput): Promise<void> {
     const filters: SQL[] = [eq(rule.domain, domain), eq(rule.isActive, true)];
     if (organizationId) filters.push(eq(rule.organizationId, organizationId));
 
-    const activeRules = await db
+    const activeRules = await getDb()
       .select()
       .from(rule)
       .where(and(...filters));
@@ -36,7 +36,8 @@ export async function runRules(input: RunRulesInput): Promise<void> {
         details = { error: "evaluation_failed" };
       }
 
-      await db.insert(decisionRuleHit).values({
+      await getDb().insert(decisionRuleHit).values({
+        organizationId: organizationId || getCurrentOrgId() || '',
         decisionId,
         ruleId: r.ruleId,
         ruleVersion: "v1.0",

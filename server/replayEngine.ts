@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { getDb } from "./rls";
 import {
   brainDecision,
   decisionInputSnapshot,
@@ -28,14 +28,14 @@ type ReplayResult = {
 
 export async function replayDecision(decisionId: string): Promise<ReplayResult | null> {
   try {
-    const [decision] = await db
+    const [decision] = await getDb()
       .select()
       .from(brainDecision)
       .where(eq(brainDecision.id, decisionId));
 
     if (!decision) return null;
 
-    const snapshots = await db
+    const snapshots = await getDb()
       .select()
       .from(decisionInputSnapshot)
       .where(eq(decisionInputSnapshot.decisionId, decisionId));
@@ -43,7 +43,7 @@ export async function replayDecision(decisionId: string): Promise<ReplayResult |
     const snapshot = snapshots[0];
     if (!snapshot) return null;
 
-    const ruleHits = await db
+    const ruleHits = await getDb()
       .select({
         hitId: decisionRuleHit.hitId,
         ruleId: decisionRuleHit.ruleId,
@@ -54,12 +54,12 @@ export async function replayDecision(decisionId: string): Promise<ReplayResult |
       .from(decisionRuleHit)
       .where(eq(decisionRuleHit.decisionId, decisionId));
 
-    const principles = await db
+    const principles = await getDb()
       .select()
       .from(principlesApplied)
       .where(eq(principlesApplied.decisionId, decisionId));
 
-    const overrides = await db
+    const overrides = await getDb()
       .select()
       .from(overrideHistory)
       .where(eq(overrideHistory.decisionId, decisionId));
@@ -122,7 +122,8 @@ export async function replayDecision(decisionId: string): Promise<ReplayResult |
     const match = outcomeMatch && hashMatch && scoreDelta < 0.01;
 
     if (!match) {
-      await db.insert(replayMismatchAlerts).values({
+      await getDb().insert(replayMismatchAlerts).values({
+        organizationId: decision.organizationId,
         decisionId,
         replayedOutcome,
         historicalOutcome,

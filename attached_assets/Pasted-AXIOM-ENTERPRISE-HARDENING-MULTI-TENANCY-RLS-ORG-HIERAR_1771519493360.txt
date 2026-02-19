@@ -1,0 +1,162 @@
+AXIOM — ENTERPRISE HARDENING (MULTI-TENANCY + RLS + ORG HIERARCHY)
+
+============================================================
+1) ROW-LEVEL SECURITY (RLS) — DATABASE SAFETY NET
+============================================================
+
+RULE:
+All tenant data must be isolated at the DATABASE level.
+Even if application logic fails, data CANNOT leak.
+
+------------------------------------------------------------
+1.1 REQUIRED COLUMN (ALL TENANT TABLES)
+------------------------------------------------------------
+
+organization_id UUID NOT NULL
+
+Applies to (minimum):
+- brains
+- decisions
+- runs
+- signals
+- documents
+- memory_vectors
+- audits
+- any future Axiom core tables
+
+------------------------------------------------------------
+1.2 SET ORGANIZATION CONTEXT (MANDATORY)
+------------------------------------------------------------
+
+Executed at the start of EVERY request, job, or agent run:
+
+SELECT set_config('axiom.current_org', :organization_id, true);
+
+If axiom.current_org is NOT set → queries must fail.
+
+------------------------------------------------------------
+1.3 ENABLE ROW-LEVEL SECURITY
+------------------------------------------------------------
+
+ALTER TABLE brains ENABLE ROW LEVEL SECURITY;
+ALTER TABLE decisions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE runs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE signals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE memory_vectors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audits ENABLE ROW LEVEL SECURITY;
+
+------------------------------------------------------------
+1.4 CREATE RLS POLICY (REPEAT FOR EACH TABLE)
+------------------------------------------------------------
+
+CREATE POLICY org_isolation
+ON brains
+USING (
+  organization_id = current_setting('axiom.current_org')::uuid
+);
+
+------------------------------------------------------------
+1.5 LOCK DOWN PUBLIC ACCESS
+------------------------------------------------------------
+
+REVOKE ALL ON brains FROM PUBLIC;
+REVOKE ALL ON decisions FROM PUBLIC;
+REVOKE ALL ON runs FROM PUBLIC;
+REVOKE ALL ON signals FROM PUBLIC;
+REVOKE ALL ON documents FROM PUBLIC;
+REVOKE ALL ON memory_vectors FROM PUBLIC;
+REVOKE ALL ON audits FROM PUBLIC;
+
+------------------------------------------------------------
+RLS GUARANTEE
+------------------------------------------------------------
+
+If organization context is missing, incorrect, or spoofed:
+→ THE DATABASE BLOCKS ACCESS
+→ NO SILENT DATA LEAKS
+
+============================================================
+2) ENTERPRISE ORGANIZATION HIERARCHY
+============================================================
+
+GOAL:
+Support holding companies, subsidiaries, and divisions
+WITHOUT data inheritance or leakage.
+
+------------------------------------------------------------
+2.1 ORGANIZATIONS TABLE
+------------------------------------------------------------
+
+CREATE TABLE organizations (
+  id UUID PRIMARY KEY,
+  name TEXT NOT NULL,
+  parent_org_id UUID NULL REFERENCES organizations(id),
+  org_type TEXT CHECK (org_type IN ('root','subsidiary','division')),
+  created_at TIMESTAMP DEFAULT now()
+);
+
+------------------------------------------------------------
+2.2 AXIOM HIERARCHY RULES (DEFAULTS)
+------------------------------------------------------------
+
+- Data belongs to EXACTLY ONE organization
+- No automatic inheritance
+- Subsidiaries CANNOT see parent data
+- Parents MAY read child data ONLY if explicitly enabled
+- ALL writes are local to the active organization
+
+------------------------------------------------------------
+2.3 OPTIONAL ORG HIERARCHY VIEW (READ SUPPORT)
+------------------------------------------------------------
+
+CREATE VIEW org_hierarchy AS
+WITH RECURSIVE org_tree AS (
+  SELECT id, parent_org_id
+  FROM organizations
+  UNION ALL
+  SELECT o.id, o.parent_org_id
+  FROM organizations o
+  JOIN org_tree ot ON o.parent_org_id = ot.id
+)
+SELECT * FROM org_tree;
+
+------------------------------------------------------------
+2.4 OPTIONAL PARENT-READ POLICY (FEATURE-FLAG ONLY)
+------------------------------------------------------------
+
+CREATE POLICY org_hierarchy_read
+ON decisions
+USING (
+  organization_id IN (
+    SELECT id
+    FROM org_hierarchy
+    WHERE parent_org_id = current_setting('axiom.current_org')::uuid
+  )
+);
+
+============================================================
+3) AXIOM ENFORCEMENT RULES (NON-NEGOTIABLE)
+============================================================
+
+- Every request MUST resolve organizationId
+- organizationId MUST be injected into:
+  • DB session
+  • API queries
+  • Agent executions
+  • Background jobs
+- RLS ENABLED on ALL tenant tables
+- No shared or global tenant data
+- Missing org context = HARD FAILURE
+
+============================================================
+4) RESULT
+============================================================
+
+✓ True multi-tenant isolation
+✓ Database-level security
+✓ Enterprise-safe org structure
+✓ Audit-ready architecture
+✓ Fortune-500–grade foundation
+
+END
