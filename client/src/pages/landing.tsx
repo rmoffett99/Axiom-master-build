@@ -89,6 +89,30 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Contact */}
+      <section className="px-6 lg:px-8 py-16 border-t border-zinc-800/50">
+        <div className="max-w-4xl mx-auto">
+          <h3 className="text-xl font-semibold text-zinc-100 mb-2" data-testid="text-contact-heading">Contact Axiom</h3>
+          <p className="text-zinc-400 mb-4">
+            Email us at{" "}
+            <a
+              href="mailto:hello@axiomdecisionlayer.com"
+              className="text-blue-400 font-medium hover:underline"
+              data-testid="link-contact-email"
+            >
+              hello@axiomdecisionlayer.com
+            </a>
+          </p>
+          <a
+            href="mailto:hello@axiomdecisionlayer.com"
+            className="inline-block px-5 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
+            data-testid="button-contact"
+          >
+            Contact Axiom
+          </a>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-8 px-6 lg:px-8 border-t border-zinc-800/50">
         <div className="max-w-7xl mx-auto">
