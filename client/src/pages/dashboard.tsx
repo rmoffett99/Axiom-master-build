@@ -10,8 +10,14 @@ import {
   Clock,
   FileText,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  Info,
 } from "lucide-react";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   LineChart,
   Line,
@@ -159,9 +165,20 @@ export default function DashboardPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Organization Decision Health Overview</p>
+        <div className="flex items-start gap-2">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Organization Decision Health Overview</p>
+          </div>
+          <UITooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-4 h-4 text-muted-foreground cursor-help mt-2 flex-shrink-0" data-testid="icon-dashboard-info" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+              <p className="font-medium mb-1">What am I looking at?</p>
+              <p>Decisions are recorded formally with their rationale, ownership, and assumptions. As assumptions change over time, AXIOM tracks their status and flags decisions that may need review. This preserves accountability and institutional history across leadership changes.</p>
+            </TooltipContent>
+          </UITooltip>
         </div>
         <Link href={orgLink("/decisions/new")}>
           <Button data-testid="button-create-decision">

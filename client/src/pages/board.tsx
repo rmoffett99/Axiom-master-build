@@ -139,7 +139,7 @@ export default function BoardModePage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Board Mode</h1>
-            <p className="text-muted-foreground">Executive overview — read-only</p>
+            <p className="text-muted-foreground">The organization's system of record for decisions — executive overview, read-only.</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
