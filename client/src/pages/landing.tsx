@@ -94,7 +94,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <h3 className="text-xl font-semibold text-zinc-100 mb-2" data-testid="text-contact-heading">Contact Axiom</h3>
           <p className="text-zinc-400 mb-4">
-            Email us at{" "}
+            Questions, access, or demos — reach us at{" "}
             <a
               href="mailto:hello@axiomdecisionlayer.com"
               className="text-blue-400 font-medium hover:underline"
