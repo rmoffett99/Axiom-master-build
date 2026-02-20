@@ -1,0 +1,97 @@
+INSTRUCTIONS FOR AGENT — READ CAREFULLY
+
+Build the AXIOM Enterprise Decision Intelligence web app exactly as described on axiomdecisionlayer.com and the current Replit prototype.
+Use the following problem statement, pain points, and feature definitions verbatim.
+Do NOT add, remove, rephrase, or creatively reinterpret concepts.
+
+IMPORTANT GUARDRAILS:
+1) This content is for internal grounding and implementation fidelity.
+   Do NOT surface this entire block verbatim in the UI.
+2) “Immutable” in v1 means append-only records with no update/delete operations at the application layer,
+   enforced by schema and permissions — NOT blockchain, crypto, or external ledgers.
+3) Prioritize core decision capture, assumption tracking, decision health scoring, and audit trail.
+   Advanced analytics, integrations, and enterprise extras are out of scope.
+
+====================================================
+DETAILED PROBLEMS / PAIN POINTS (VERBATIM-GROUNDED)
+====================================================
+
+Core Enterprise Problem:
+Decisions are ephemeral and degrade silently, creating massive hidden risk.
+
+In modern organizations, important decisions are made every day, but they are rarely captured properly.
+The result is accumulated “decision debt” — the compounding cost of untracked, outdated, or unowned decisions
+that turn into operational, compliance, legal, strategic, or reputational risks when no one notices the degradation.
+
+Specific pains that AXIOM directly addresses:
+
+• Important decisions are recorded incompletely or not at all.
+  Only the final outcome is noted (if anything), but the full context — rationale, assumptions,
+  decision owner, and supporting evidence — is lost over time, leading to institutional amnesia.
+
+• Assumptions underlying decisions are never tracked or monitored.
+  Every decision rests on assumptions about market conditions, data, regulations, technology,
+  or internal factors. When assumptions change, expire, become invalid, or are disproven,
+  the decision silently degrades without visibility or alerts.
+
+• “Decision debt” accumulates invisibly and dangerously.
+  Decisions degrade due to changed assumptions, departed owners, overdue reviews,
+  or forgotten context — creating real organizational risk that surfaces only during crises,
+  audits, or post-mortems.
+
+• No centralized, tamper-proof system of record exists for decisions.
+  Decision records are scattered across emails, Slack threads, meeting notes, documents, or memory,
+  and can be altered, deleted, or lost — failing audits, regulatory scrutiny, legal discovery,
+  board questions, and internal accountability.
+
+• Weak or nonexistent audit trails for decisions.
+  When things go wrong, organizations cannot prove who decided what, when, why,
+  on what basis, or with what evidence. Institutional memory disappears when people leave.
+
+• Leadership and boards lack visibility into decision health.
+  Executives, General Counsel, and Compliance & Risk leaders cannot quickly see degraded decisions,
+  accountability gaps, assumption risks, or organizational decision quality without manual investigation.
+
+• The “why” behind major decisions disappears with turnover.
+  Rationale and context vanish when teams change, forcing risky re-decisions or perpetuation of outdated choices.
+
+====================================================
+EXACT FEATURES AXIOM MUST DELIVER
+====================================================
+
+• A structured record of every significant decision, preserving context, ownership,
+  assumptions, and supporting evidence for as long as they matter.
+
+• Capture decisions with full context — not just outcomes.
+
+• Track assumptions over time, including valid, expired, and disproven states.
+
+• Detect decision debt before it becomes risk by scoring decision health
+  and flagging when assumptions change, owners leave, or reviews are overdue.
+
+• Maintain an append-only, tamper-proof audit trail where every action
+  is recorded immutably at the moment it occurs.
+
+• Provide board-ready, read-only executive visibility into decision health,
+  risk exposure, and accountability.
+
+====================================================
+TARGET USERS
+====================================================
+
+• General Counsel — prove who decided what, when, and why with an immutable record.
+• Compliance & Risk Leaders — monitor assumption health and maintain audit-ready documentation.
+• Executives & Boards — see organizational decision health without losing institutional memory.
+
+====================================================
+OVERARCHING MISSION (VERBATIM)
+====================================================
+
+“Every decision recorded. Every assumption tracked. Every audit answered.”
+
+“AXIOM is the system of record for how your organization makes decisions — who owned them,
+what was assumed, and whether those assumptions still hold.”
+
+“The why behind every important decision — never lost, always accountable, permanently on record.”
+
+“AXIOM ensures that when assumptions change, someone is accountable for reviewing what needs to change with them.”
