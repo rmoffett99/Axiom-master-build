@@ -1,0 +1,46 @@
+APPROVED: EXECUTE
+
+Scope of approval is LIMITED to the following only:
+
+1) Enhancement #2 — Demo Sample Assumptions (Empty-State Only)
+   - When the Assumptions tab is empty ("No assumptions recorded"), render a clearly labeled demo-only sample list instead of a blank state.
+   - Display exactly 3 example assumptions with fields:
+     • Assumption text
+     • Expiry date
+     • Status badge (Active / Pending Review / Expired)
+     • Evidence link placeholder (non-functional, visually present only)
+   - Include a visible label above the sample list: "Sample data — for illustration only"
+   - Use existing list/card/badge patterns already present (shadcn/ui + current styling). Do NOT introduce new UI libraries or custom components unless absolutely necessary.
+   - Frontend-only
+   - No backend changes or API calls
+   - Static/fake data only — no user input persistence
+   - Auto-hide sample list as soon as real assumptions exist (i.e., if assumptions.length > 0, show real assumptions only)
+
+2) Enhancement #5 — Disabled “Add Assumption” Button (Expectation Setter)
+   - Add a subtle "Add Assumption" button in the Assumptions tab header area.
+   - Button must be disabled (no click action).
+   - Add tooltip on hover: "Coming soon: Create and track custom assumptions"
+   - Use existing Button + Tooltip patterns (shadcn/ui); do not add new components.
+   - Frontend-only, display-only
+
+Explicitly NOT approved:
+- Any real data persistence or backend integration
+- User-editable forms or submission logic
+- Onboarding tours, modals, or multi-step flows
+- New routes or page redesigns
+- Any scope expansion beyond listed items
+- Copy changes outside the approved tooltips/buttons
+
+Execution requirements:
+- Show unified diffs (git diff or code blocks) before finalizing
+- Keep changes minimal and reversible
+- Prepare commits but do not push/deploy without confirmation
+- After deploy: Run validation checklist and report results:
+  • Assumptions tab empty-state shows sample data + "Sample data — for illustration only"
+  • Real assumptions still render normally when present
+  • Disabled "Add Assumption" button displays tooltip
+  • No console errors
+  • No navigation changes
+  • No API/backend changes
+
+Proceed.

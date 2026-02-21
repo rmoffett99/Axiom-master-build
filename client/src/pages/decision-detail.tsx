@@ -24,7 +24,9 @@ import {
   History,
   Bell,
   Info,
-  Shield
+  Shield,
+  Plus,
+  ExternalLink
 } from "lucide-react";
 import {
   Tooltip as UITooltip,
@@ -451,13 +453,91 @@ export default function DecisionDetailPage() {
         </TabsContent>
 
         <TabsContent value="assumptions" className="space-y-4">
+          <div className="flex items-center justify-end">
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-not-allowed" data-testid="button-add-assumption">
+                  <Button size="sm" variant="outline" disabled>
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Add Assumption
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                Coming soon: Create and track custom assumptions
+              </TooltipContent>
+            </UITooltip>
+          </div>
           {assumptions.length === 0 ? (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <HelpCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No assumptions recorded</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 px-1">
+                <Info className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
+                <p className="text-xs text-muted-foreground italic" data-testid="text-sample-label">Sample data — for illustration only</p>
+              </div>
+              <Card className="overflow-hidden border-dashed">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-4 h-4 text-chart-5 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">Customer acquisition cost remains under $50 per converted lead</p>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">Active</Badge>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Valid until 4/16/2026
+                        </span>
+                        <span className="flex items-center gap-1 text-muted-foreground/50">
+                          <ExternalLink className="w-3 h-3" />
+                          Evidence attached
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="overflow-hidden border-dashed">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <HelpCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">Primary vendor contract renewal terms remain unchanged through Q3</p>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                        <Badge variant="secondary" className="text-xs">Pending Review</Badge>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Valid until 9/30/2026
+                        </span>
+                        <span className="flex items-center gap-1 text-muted-foreground/50">
+                          <ExternalLink className="w-3 h-3" />
+                          Evidence attached
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="overflow-hidden border-dashed border-chart-2/50 bg-chart-2/5">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-4 h-4 text-chart-2 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm">Regulatory approval timeline holds to original 18-month estimate</p>
+                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                        <Badge variant="destructive" className="text-xs">Expired</Badge>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Expired 1/15/2026
+                        </span>
+                        <span className="flex items-center gap-1 text-muted-foreground/50">
+                          <ExternalLink className="w-3 h-3" />
+                          Evidence attached
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           ) : (
             assumptions.map(assumption => (
               <AssumptionCard 
