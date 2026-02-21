@@ -43,6 +43,33 @@ import type {
   Alert 
 } from "@shared/schema";
 
+const SAMPLE_ASSUMPTIONS = [
+  {
+    text: "Customer acquisition costs will stay under $50 through Q2",
+    status: "Active",
+    badgeVariant: "outline" as const,
+    dateLabel: "Expires",
+    date: "6/30/2026",
+    evidence: "Internal CAC report",
+  },
+  {
+    text: "Market growth rate remains at least 8% YoY",
+    status: "Pending Review",
+    badgeVariant: "secondary" as const,
+    dateLabel: "Expires",
+    date: "4/1/2026",
+    evidence: "Industry forecast PDF",
+  },
+  {
+    text: "No major regulatory changes in ad spend rules",
+    status: "Expired",
+    badgeVariant: "destructive" as const,
+    dateLabel: "Expired",
+    date: "12/31/2025",
+    evidence: "Regulatory tracker",
+  },
+];
+
 function StatusBadge({ status }: { status: string }) {
   const config: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
     draft: { variant: "outline", label: "Draft" },
@@ -474,69 +501,42 @@ export default function DecisionDetailPage() {
                 <Info className="w-3.5 h-3.5 text-muted-foreground/60 flex-shrink-0" />
                 <p className="text-xs text-muted-foreground italic" data-testid="text-sample-label">Sample data — for illustration only</p>
               </div>
-              <Card className="overflow-hidden border-dashed">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <CheckCircle className="w-4 h-4 text-chart-5 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">Customer acquisition cost remains under $50 per converted lead</p>
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                        <Badge variant="outline" className="text-xs">Active</Badge>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Valid until 4/16/2026
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground/50">
-                          <ExternalLink className="w-3 h-3" />
-                          Evidence attached
-                        </span>
+              {SAMPLE_ASSUMPTIONS.map((sample, i) => {
+                const isExpired = sample.status === "Expired";
+                const iconMap: Record<string, { icon: typeof CheckCircle; className: string }> = {
+                  Active: { icon: CheckCircle, className: "text-chart-5" },
+                  "Pending Review": { icon: HelpCircle, className: "text-muted-foreground" },
+                  Expired: { icon: Clock, className: "text-chart-2" },
+                };
+                const { icon: Icon, className: iconClass } = iconMap[sample.status] || iconMap.Active;
+                return (
+                  <Card
+                    key={i}
+                    className={`overflow-hidden border-dashed ${isExpired ? "border-chart-2/50 bg-chart-2/5" : ""}`}
+                    data-testid={`card-sample-assumption-${i}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Icon className={`w-4 h-4 mt-0.5 ${iconClass}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm">{sample.text}</p>
+                          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                            <Badge variant={sample.badgeVariant} className="text-xs">{sample.status}</Badge>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {sample.dateLabel} {sample.date}
+                            </span>
+                            <span className="flex items-center gap-1 text-muted-foreground/50">
+                              <ExternalLink className="w-3 h-3" />
+                              {sample.evidence}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="overflow-hidden border-dashed">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <HelpCircle className="w-4 h-4 text-muted-foreground mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">Primary vendor contract renewal terms remain unchanged through Q3</p>
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                        <Badge variant="secondary" className="text-xs">Pending Review</Badge>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Valid until 9/30/2026
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground/50">
-                          <ExternalLink className="w-3 h-3" />
-                          Evidence attached
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card className="overflow-hidden border-dashed border-chart-2/50 bg-chart-2/5">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <Clock className="w-4 h-4 text-chart-2 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm">Regulatory approval timeline holds to original 18-month estimate</p>
-                      <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-                        <Badge variant="destructive" className="text-xs">Expired</Badge>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          Expired 1/15/2026
-                        </span>
-                        <span className="flex items-center gap-1 text-muted-foreground/50">
-                          <ExternalLink className="w-3 h-3" />
-                          Evidence attached
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             assumptions.map(assumption => (

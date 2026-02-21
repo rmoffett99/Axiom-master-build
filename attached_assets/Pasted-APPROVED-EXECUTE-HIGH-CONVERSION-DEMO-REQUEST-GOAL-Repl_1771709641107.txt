@@ -1,0 +1,58 @@
+APPROVED: EXECUTE (HIGH-CONVERSION DEMO REQUEST)
+
+GOAL:
+Replace mailto demo request flow with a true form submission that sends an email to hello@axiomdecisionlayer.com and shows an instant success message—without leaving the page.
+
+MOTTO REQUIREMENTS:
+- Make it simple: one action, no extra steps
+- Make it helpful: clear confirmation + clear expectations
+- Respect people’s time: no email-app redirect, no long forms, no friction
+
+DO (REQUIRED):
+1) Implement POST endpoint: /api/demo-request
+   - Validate fields server-side (name optional, email required, company optional, message optional)
+   - Send an email to hello@axiomdecisionlayer.com with submitted details
+   - Return JSON { ok: true } on success, { ok: false, error: "..." } on failure
+   - No data persistence (no DB writes)
+
+2) Update the Request Demo UI
+   - Use the existing form UI (Name, Work Email*, Company, What are you looking to solve?)
+   - On submit:
+     - Disable button + show “Sending…”
+     - On success: replace form with a simple confirmation message and optional “Request another demo” link/button
+     - On failure: show short inline error and keep user input intact
+
+3) Anti-spam light protection (simple, not heavy)
+   - Add a hidden honeypot field (e.g., website) and reject if filled
+   - Add basic rate limiting by IP (lightweight in-memory is fine)
+   - No captcha
+
+4) Keep UI copy short and professional
+   - Success text: “Request received. We’ll follow up shortly.”
+   - Optional subtext: “Typically within one business day.”
+
+DO NOT (FORBIDDEN):
+- Do not add a database, CRM, or storage
+- Do not add onboarding tours/modals
+- Do not change site layout/design beyond what is necessary
+- Do not add new routes/pages
+- Do not add more fields than already exist
+- Do not add heavy dependencies or frameworks
+
+IMPLEMENTATION NOTE (EMAIL SENDING):
+Prefer a provider with minimal footprint.
+- If Resend is acceptable: use a simple fetch to Resend API (no new library required).
+- If SMTP is already configured: use existing mail utility.
+- If nothing exists: implement Resend via fetch + env var RESEND_API_KEY.
+
+VALIDATION CHECKLIST (MUST CONFIRM):
+- Clicking Request Demo does NOT open the email app
+- Submission succeeds and shows confirmation instantly
+- hello@axiomdecisionlayer.com receives the email
+- No console errors
+- Form handles slow network gracefully (disabled button)
+- Works on mobile Safari + desktop Chrome
+- Mailto flow removed or kept only as fallback link (secondary, not primary)
+
+STOP CONDITION:
+If an email provider is not configured and cannot be added safely, STOP and ask for direction before proceeding.
