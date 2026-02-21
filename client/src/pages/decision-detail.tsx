@@ -22,8 +22,15 @@ import {
   Link as LinkIcon,
   GitBranch,
   History,
-  Bell
+  Bell,
+  Info,
+  Shield
 } from "lucide-react";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOrgLink } from "@/lib/use-org-link";
 import type { 
   DecisionWithDetails, 
@@ -80,7 +87,17 @@ function AssumptionCard({ assumption, onValidate }: { assumption: Assumption; on
           <div className="flex-1 min-w-0">
             <p className="text-sm">{assumption.description}</p>
             <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
-              <span>{statusLabels[assumption.status]}</span>
+              <UITooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help underline decoration-dotted underline-offset-2">{statusLabels[assumption.status]}</span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                  {assumption.status === "valid" && "This assumption has been reviewed and confirmed to still hold true."}
+                  {assumption.status === "expired" && "This assumption has passed its validity date and should be re-evaluated before relying on the parent decision."}
+                  {assumption.status === "invalidated" && "This assumption has been marked as no longer true. The parent decision may need to be revisited."}
+                  {assumption.status === "pending_review" && "This assumption has not yet been reviewed. It should be confirmed or invalidated by the decision owner."}
+                </TooltipContent>
+              </UITooltip>
               {assumption.validUntil && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
@@ -319,7 +336,17 @@ export default function DecisionDetailPage() {
           <CardContent className="py-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
-                <p className="text-sm text-muted-foreground">Decision Debt Score</p>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-sm text-muted-foreground">Decision Debt Score</p>
+                  <UITooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" data-testid="icon-tooltip-debt-score" />
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                      A system-generated measure of how many assumptions behind this decision may need review. Higher scores indicate more unresolved assumptions or overdue reviews.
+                    </TooltipContent>
+                  </UITooltip>
+                </div>
                 <p className="text-3xl font-bold">{decision.debtScore || 0}</p>
               </div>
               <div className="flex gap-6 text-sm">
@@ -462,11 +489,21 @@ export default function DecisionDetailPage() {
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <History className="w-5 h-5" />
-                Version History
-              </CardTitle>
-              <CardDescription>All amendments to this decision</CardDescription>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <History className="w-5 h-5" />
+                    Version History
+                  </CardTitle>
+                  <CardDescription>All amendments to this decision</CardDescription>
+                </div>
+                <Link href={orgLink("/audit")}>
+                  <Button variant="outline" size="sm" data-testid="link-audit-trail">
+                    <Shield className="w-3.5 h-3.5 mr-1.5" />
+                    View full audit trail
+                  </Button>
+                </Link>
+              </div>
             </CardHeader>
             <CardContent>
               {versions.length === 0 ? (

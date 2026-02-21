@@ -13,6 +13,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +32,8 @@ import {
   ChevronRight,
   FileText,
   Clock,
-  User
+  User,
+  Info
 } from "lucide-react";
 import { useState } from "react";
 import { useOrgLink } from "@/lib/use-org-link";
@@ -163,7 +169,19 @@ export default function DecisionsPage() {
                   <TableHead>Decision</TableHead>
                   <TableHead className="hidden md:table-cell">Owner</TableHead>
                   <TableHead className="hidden sm:table-cell">Status</TableHead>
-                  <TableHead>Debt Score</TableHead>
+                  <TableHead>
+                    <div className="flex items-center gap-1.5">
+                      Debt Score
+                      <UITooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" data-testid="icon-tooltip-debt-score-col" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                          A system-generated measure of how many assumptions behind each decision may need review. Higher scores indicate more unresolved risk.
+                        </TooltipContent>
+                      </UITooltip>
+                    </div>
+                  </TableHead>
                   <TableHead className="hidden lg:table-cell">Review By</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>

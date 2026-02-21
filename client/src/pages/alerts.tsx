@@ -23,14 +23,27 @@ import {
   FileText,
   Filter,
   ChevronRight,
-  User
+  User,
+  Info
 } from "lucide-react";
+import {
+  Tooltip as UITooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useOrgLink } from "@/lib/use-org-link";
 import type { Alert, Decision } from "@shared/schema";
 
 interface AlertWithDecision extends Alert {
   decision?: Decision;
 }
+
+const severityTooltips: Record<string, string> = {
+  critical: "Requires immediate attention. Indicates an expired assumption, departed owner, or a decision with a very high debt score.",
+  high: "Should be addressed soon. Indicates overdue reviews or multiple assumptions nearing expiry.",
+  medium: "Worth monitoring. Indicates assumptions approaching their validity date or minor ownership gaps.",
+  low: "Informational. Routine notifications about upcoming reviews or minor changes.",
+};
 
 function SeverityBadge({ severity }: { severity: string }) {
   const config: Record<string, { variant: "default" | "secondary" | "outline" | "destructive"; label: string }> = {
@@ -41,7 +54,18 @@ function SeverityBadge({ severity }: { severity: string }) {
   };
 
   const { variant, label } = config[severity] || config.low;
-  return <Badge variant={variant}>{label}</Badge>;
+  return (
+    <UITooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-help">
+          <Badge variant={variant}>{label}</Badge>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+        {severityTooltips[severity] || severityTooltips.low}
+      </TooltipContent>
+    </UITooltip>
+  );
 }
 
 function TypeBadge({ type }: { type: string }) {

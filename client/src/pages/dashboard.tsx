@@ -35,13 +35,15 @@ function StatCard({
   value, 
   description, 
   icon: Icon, 
-  variant = "default" 
+  variant = "default",
+  tooltip
 }: { 
   title: string; 
   value: string | number; 
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   variant?: "default" | "warning" | "danger";
+  tooltip?: string;
 }) {
   const variantStyles = {
     default: "bg-muted text-muted-foreground",
@@ -52,7 +54,19 @@ function StatCard({
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className="flex items-center gap-1.5">
+          <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+          {tooltip && (
+            <UITooltip>
+              <TooltipTrigger asChild>
+                <Info className="w-3.5 h-3.5 text-muted-foreground/60 cursor-help flex-shrink-0" data-testid={`icon-tooltip-${title.toLowerCase().replace(/[\s.]+/g, "-")}`} />
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs text-xs leading-relaxed">
+                {tooltip}
+              </TooltipContent>
+            </UITooltip>
+          )}
+        </div>
         <div className={`w-8 h-8 rounded-md flex items-center justify-center ${variantStyles[variant]}`}>
           <Icon className="w-4 h-4" />
         </div>
@@ -202,6 +216,7 @@ export default function DashboardPage() {
           description="Organization-wide score"
           icon={TrendingDown}
           variant="warning"
+          tooltip="A system-generated measure of how many decisions rely on assumptions that may be outdated or unreviewed. Higher scores indicate more unresolved risk."
         />
         <StatCard
           title="Critical Alerts"
@@ -209,6 +224,7 @@ export default function DashboardPage() {
           description="Require immediate attention"
           icon={AlertTriangle}
           variant={stats?.criticalAlerts ? "danger" : "default"}
+          tooltip="System-generated notifications triggered when assumptions expire, reviews are overdue, or ownership changes. Critical alerts require prompt review."
         />
         <StatCard
           title="Expiring Soon"
@@ -216,6 +232,7 @@ export default function DashboardPage() {
           description="Within next 30 days"
           icon={Clock}
           variant={stats?.expiringSoon ? "warning" : "default"}
+          tooltip="Decisions with upcoming review dates. As a review date approaches, the decision should be re-evaluated to confirm its assumptions still hold."
         />
       </div>
 
