@@ -1,3 +1,4 @@
+import { db as globalDb } from "./db";
 import { getDb, withOrgContext } from "./rls";
 import { 
   users, 
@@ -6,14 +7,30 @@ import {
   decisionVersions, 
   assumptions, 
   alerts,
-  evidenceLinks
+  evidenceLinks,
+  organizations
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 const DEFAULT_ORG_ID = '00000000-0000-0000-0000-000000000001';
+const SECOND_ORG_ID = '00000000-0000-0000-0000-000000000002';
+
+async function ensureOrganizations() {
+  const existingOrgs = await globalDb.select().from(organizations);
+  if (existingOrgs.length > 0) return;
+
+  console.log("Seeding organizations...");
+  await globalDb.insert(organizations).values([
+    { id: DEFAULT_ORG_ID, name: "Axiom Demo", slug: "axiom-demo", status: "active", orgType: "root" },
+    { id: SECOND_ORG_ID, name: "Acme Corp", slug: "acme-corp", status: "active", orgType: "root" },
+  ]);
+  console.log("Organizations seeded.");
+}
 
 export async function seedDatabase() {
   console.log("Checking if database needs seeding...");
+
+  await ensureOrganizations();
 
   return withOrgContext(DEFAULT_ORG_ID, async () => {
     const db = getDb();

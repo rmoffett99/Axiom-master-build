@@ -59,15 +59,22 @@ function AppLayout() {
   );
 }
 
+function AppWithOrg() {
+  return (
+    <OrgProvider>
+      <AppLayout />
+    </OrgProvider>
+  );
+}
+
 function Router() {
   const [location] = useLocation();
-  const isLanding = location === "/";
 
-  if (isLanding) {
+  if (location === "/") {
     return <LandingPage />;
   }
 
-  return <AppLayout />;
+  return <AppWithOrg />;
 }
 
 function App() {
@@ -75,10 +82,8 @@ function App() {
     <ThemeProvider defaultTheme="light" storageKey="axiom-ui-theme">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <OrgProvider>
-            <Toaster />
-            <Router />
-          </OrgProvider>
+          <Toaster />
+          <Router />
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>
