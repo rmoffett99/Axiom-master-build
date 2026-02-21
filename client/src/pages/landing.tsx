@@ -1,55 +1,92 @@
+import { useState } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useOrgLink } from "@/lib/use-org-link";
+import { useToast } from "@/hooks/use-toast";
 import {
   ClipboardCheck,
   Activity,
   AlertTriangle,
   Shield,
   BarChart3,
+  Lock,
+  FileCheck,
+  Database,
+  ArrowRight,
 } from "lucide-react";
 
 export default function LandingPage() {
   const orgLink = useOrgLink();
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({ name: "", email: "", company: "", message: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleDemoRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!formData.email.trim()) {
+      toast({ title: "Please enter your email address", variant: "destructive" });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const subject = encodeURIComponent("AXIOM Demo Request");
+    const body = encodeURIComponent(
+      `Name: ${formData.name}\nEmail: ${formData.email}\nCompany: ${formData.company}\n\n${formData.message || "I'd like to schedule a demo of AXIOM."}`
+    );
+    window.location.href = `mailto:hello@axiomdecisionlayer.com?subject=${subject}&body=${body}`;
+
+    setTimeout(() => {
+      setIsSubmitting(false);
+      toast({ title: "Opening your email client", description: "If it doesn't open, email us directly at hello@axiomdecisionlayer.com" });
+    }, 1000);
+  };
+
+  const scrollToDemo = (e: React.MouseEvent) => {
+    e.preventDefault();
+    document.getElementById("request-demo")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-sm border-b border-zinc-800/50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             <div className="flex items-center gap-1">
               <span className="font-semibold text-lg tracking-tight text-zinc-100">AXIOM</span>
-              <span className="text-xs text-zinc-500 font-medium">™</span>
+              <span className="text-xs text-zinc-500 font-medium">&trade;</span>
             </div>
             <div className="flex items-center gap-3">
               <ThemeToggle />
               <Link href={orgLink("/dashboard")}>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="text-zinc-400"
                   data-testid="button-login"
                 >
                   Enter
                 </Button>
               </Link>
-              <Link href={orgLink("/dashboard")}>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="border-zinc-700 text-zinc-300"
-                  data-testid="button-demo"
-                >
-                  View Demo
-                </Button>
-              </Link>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-zinc-700 text-zinc-300"
+                data-testid="button-demo-nav"
+                onClick={scrollToDemo}
+              >
+                Request Demo
+              </Button>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
       <section className="min-h-screen flex flex-col justify-center px-6 lg:px-8 pt-16">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight mb-6 text-zinc-100 leading-tight" data-testid="text-hero-headline">
@@ -61,19 +98,19 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-12">
+            <Button
+              size="lg"
+              className="bg-zinc-100 text-zinc-900 border-zinc-100 text-base font-medium"
+              data-testid="button-request-demo"
+              onClick={scrollToDemo}
+            >
+              Request a Demo
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
             <Link href={orgLink("/dashboard")}>
-              <Button 
-                size="lg" 
-                className="bg-zinc-100 text-zinc-900 border-zinc-100 text-base font-medium px-8"
-                data-testid="button-briefing"
-              >
-                Enter Platform
-              </Button>
-            </Link>
-            <Link href={orgLink("/dashboard")}>
-              <Button 
-                size="lg" 
-                variant="ghost" 
+              <Button
+                size="lg"
+                variant="ghost"
                 className="text-zinc-400 text-base w-full sm:w-auto"
                 data-testid="button-explore"
               >
@@ -84,7 +121,33 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Product Overview */}
+      <section className="px-6 lg:px-8 py-16 border-t border-zinc-800/50" data-testid="section-problem">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-100 mb-4">The Problem</h2>
+          <p className="text-lg text-zinc-400 mb-8 max-w-3xl">
+            Decisions are ephemeral and degrade silently, creating massive hidden risk. Important decisions are made every day, but they are rarely captured properly.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-6">
+            <div className="border border-zinc-800/60 rounded-lg p-5" data-testid="pain-institutional-amnesia">
+              <h3 className="text-sm font-medium text-zinc-300 mb-2">Institutional Amnesia</h3>
+              <p className="text-sm text-zinc-500">Only the final outcome is noted. The full context — rationale, assumptions, ownership, and evidence — is lost over time.</p>
+            </div>
+            <div className="border border-zinc-800/60 rounded-lg p-5" data-testid="pain-silent-degradation">
+              <h3 className="text-sm font-medium text-zinc-300 mb-2">Silent Degradation</h3>
+              <p className="text-sm text-zinc-500">Assumptions change, expire, or become invalid. Without visibility, decisions degrade without anyone noticing until a crisis.</p>
+            </div>
+            <div className="border border-zinc-800/60 rounded-lg p-5" data-testid="pain-decision-debt">
+              <h3 className="text-sm font-medium text-zinc-300 mb-2">Invisible Decision Debt</h3>
+              <p className="text-sm text-zinc-500">Departed owners, overdue reviews, forgotten context — creating real organizational risk that surfaces only during audits or post-mortems.</p>
+            </div>
+            <div className="border border-zinc-800/60 rounded-lg p-5" data-testid="pain-no-audit-trail">
+              <h3 className="text-sm font-medium text-zinc-300 mb-2">No Defensible Record</h3>
+              <p className="text-sm text-zinc-500">Decision records scattered across emails, Slack, and memory — failing audits, regulatory scrutiny, legal discovery, and board questions.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="px-6 lg:px-8 py-24 border-t border-zinc-800/50" data-testid="section-product-overview">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-100 mb-4">What AXIOM Does</h2>
@@ -146,7 +209,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Who It's For */}
       <section className="px-6 lg:px-8 py-24 border-t border-zinc-800/50" data-testid="section-who-its-for">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-100 mb-4">Who It's For</h2>
@@ -173,7 +235,34 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Closing Statement */}
+      <section className="px-6 lg:px-8 py-16 border-t border-zinc-800/50" data-testid="section-trust">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid sm:grid-cols-3 gap-8">
+            <div className="flex gap-3 items-start" data-testid="trust-immutable">
+              <Lock className="w-5 h-5 text-zinc-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-zinc-300">Append-Only Records</h4>
+                <p className="text-xs text-zinc-500">Every decision entry is permanent. No edits, no deletions — only new versions.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start" data-testid="trust-audit">
+              <FileCheck className="w-5 h-5 text-zinc-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-zinc-300">Compliance-Ready</h4>
+                <p className="text-xs text-zinc-500">Built for regulatory audits, legal discovery, and board-level scrutiny from day one.</p>
+              </div>
+            </div>
+            <div className="flex gap-3 items-start" data-testid="trust-isolation">
+              <Database className="w-5 h-5 text-zinc-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-zinc-300">Data Isolation</h4>
+                <p className="text-xs text-zinc-500">Organization-scoped data with row-level security. Your decisions stay yours.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section className="px-6 lg:px-8 py-24 border-t border-zinc-800/50" data-testid="section-closing">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-xl sm:text-2xl text-zinc-300 font-medium mb-2" data-testid="text-closing-statement">
@@ -185,40 +274,93 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Contact */}
-      <section className="px-6 lg:px-8 py-16 border-t border-zinc-800/50">
-        <div className="max-w-4xl mx-auto">
-          <h3 className="text-xl font-semibold text-zinc-100 mb-2" data-testid="text-contact-heading">Contact Axiom</h3>
-          <p className="text-zinc-400 mb-4">
-            Questions, access, or demos — reach us at{" "}
-            <a
-              href="mailto:hello@axiomdecisionlayer.com"
-              className="text-blue-400 font-medium hover:underline"
-              data-testid="link-contact-email"
-            >
-              hello@axiomdecisionlayer.com
-            </a>
+      <section id="request-demo" className="px-6 lg:px-8 py-24 border-t border-zinc-800/50" data-testid="section-request-demo">
+        <div className="max-w-2xl mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-semibold text-zinc-100 mb-3">Request a Demo</h2>
+          <p className="text-zinc-400 mb-8">
+            See how AXIOM captures decisions, tracks assumptions, and surfaces decision debt — in a live walkthrough tailored to your organization.
           </p>
-          <a
-            href="mailto:hello@axiomdecisionlayer.com"
-            className="inline-block px-5 py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 transition-colors"
-            data-testid="button-contact"
-          >
-            Contact Axiom
-          </a>
+
+          <form onSubmit={handleDemoRequest} data-testid="form-demo-request">
+            <div className="space-y-4 mb-6">
+              <div>
+                <label htmlFor="demo-name" className="block text-sm font-medium text-zinc-300 mb-1.5">Name</label>
+                <Input
+                  id="demo-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Your name"
+                  className="bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+                  data-testid="input-demo-name"
+                />
+              </div>
+              <div>
+                <label htmlFor="demo-email" className="block text-sm font-medium text-zinc-300 mb-1.5">Work Email <span className="text-zinc-500">*</span></label>
+                <Input
+                  id="demo-email"
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="you@company.com"
+                  className="bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+                  data-testid="input-demo-email"
+                />
+              </div>
+              <div>
+                <label htmlFor="demo-company" className="block text-sm font-medium text-zinc-300 mb-1.5">Company</label>
+                <Input
+                  id="demo-company"
+                  type="text"
+                  value={formData.company}
+                  onChange={(e) => setFormData(prev => ({ ...prev, company: e.target.value }))}
+                  placeholder="Company name"
+                  className="bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+                  data-testid="input-demo-company"
+                />
+              </div>
+              <div>
+                <label htmlFor="demo-message" className="block text-sm font-medium text-zinc-300 mb-1.5">What are you looking to solve?</label>
+                <Textarea
+                  id="demo-message"
+                  rows={3}
+                  value={formData.message}
+                  onChange={(e) => setFormData(prev => ({ ...prev, message: e.target.value }))}
+                  placeholder="Tell us about your decision tracking challenges (optional)"
+                  className="bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600 resize-none"
+                  data-testid="input-demo-message"
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isSubmitting}
+              className="w-full sm:w-auto bg-zinc-100 text-zinc-900 text-base font-medium"
+              data-testid="button-submit-demo"
+            >
+              {isSubmitting ? "Opening Email..." : "Request Demo"}
+            </Button>
+            <p className="text-xs text-zinc-600 mt-3">
+              Or email us directly at{" "}
+              <a href="mailto:hello@axiomdecisionlayer.com" className="text-zinc-400 hover:underline" data-testid="link-contact-email">
+                hello@axiomdecisionlayer.com
+              </a>
+            </p>
+          </form>
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="py-8 px-6 lg:px-8 border-t border-zinc-800/50">
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-1">
               <span className="font-medium text-sm text-zinc-400">AXIOM</span>
-              <span className="text-xs text-zinc-600">™</span>
+              <span className="text-xs text-zinc-600">&trade;</span>
             </div>
             <p className="text-sm text-zinc-600">
-              © 2026 Axiom Systems
+              &copy; 2026 Axiom Systems
             </p>
           </div>
         </div>
