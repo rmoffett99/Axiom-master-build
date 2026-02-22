@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { useOrgLink } from "@/lib/use-org-link";
+import { useOrg } from "@/lib/org-context";
 import type { DecisionWithDetails } from "@shared/schema";
 
 function DecisionStatusBadge({ status }: { status: string }) {
@@ -69,6 +70,8 @@ function DebtScoreBadge({ score }: { score: number }) {
 
 export default function DecisionsPage() {
   const orgLink = useOrgLink();
+  const { activeOrg } = useOrg();
+  const isDemo = activeOrg?.slug === "axiom-demo";
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   
@@ -103,12 +106,19 @@ export default function DecisionsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Decisions</h1>
           <p className="text-muted-foreground">Manage your organization's decision records</p>
         </div>
-        <Link href={orgLink("/decisions/new")}>
-          <Button data-testid="button-new-decision-page">
+        {isDemo ? (
+          <Button data-testid="button-new-decision-page" disabled className="opacity-50 cursor-not-allowed">
             <Plus className="w-4 h-4 mr-2" />
             New Decision
           </Button>
-        </Link>
+        ) : (
+          <Link href={orgLink("/decisions/new")}>
+            <Button data-testid="button-new-decision-page">
+              <Plus className="w-4 h-4 mr-2" />
+              New Decision
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Filters */}
