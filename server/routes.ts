@@ -57,10 +57,84 @@ const updateAssumptionSchema = z.object({
   status: z.enum(["valid", "expired", "invalidated", "pending_review"]),
 });
 
+const demoRateLimit = new Map<string, { count: number; resetAt: number }>();
+const DEMO_RATE_LIMIT = 5;
+const DEMO_RATE_WINDOW = 60 * 60 * 1000;
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+
+  app.post("/api/demo-request", async (req, res) => {
+    try {
+      const ip = req.ip || req.socket.remoteAddress || "unknown";
+      const now = Date.now();
+      const entry = demoRateLimit.get(ip);
+      if (entry && now < entry.resetAt) {
+        if (entry.count >= DEMO_RATE_LIMIT) {
+          return res.status(429).json({ ok: false, error: "Too many requests. Please try again later." });
+        }
+        entry.count++;
+      } else {
+        demoRateLimit.set(ip, { count: 1, resetAt: now + DEMO_RATE_WINDOW });
+      }
+
+      const { name, email, company, message, website } = req.body;
+
+      if (website) {
+        return res.json({ ok: true });
+      }
+
+      if (!email || typeof email !== "string" || !email.includes("@")) {
+        return res.status(400).json({ ok: false, error: "A valid email address is required." });
+      }
+
+      const apiKey = process.env.RESEND_API_KEY;
+      if (!apiKey) {
+        console.error("RESEND_API_KEY not configured");
+        return res.status(500).json({ ok: false, error: "Email service not configured." });
+      }
+
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+      const emailBody = [
+        `<h2>New AXIOM Demo Request</h2>`,
+        `<p><strong>Name:</strong> ${esc(name || "Not provided")}</p>`,
+        `<p><strong>Email:</strong> ${esc(email)}</p>`,
+        `<p><strong>Company:</strong> ${esc(company || "Not provided")}</p>`,
+        `<p><strong>Message:</strong> ${esc(message || "No message provided")}</p>`,
+        `<hr/>`,
+        `<p style="color:#888;font-size:12px;">Submitted at ${new Date().toISOString()}</p>`,
+      ].join("\n");
+
+      const resendRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "AXIOM Demo <onboarding@resend.dev>",
+          to: "hello@axiomdecisionlayer.com",
+          reply_to: email,
+          subject: `Demo Request from ${name || email}${company ? ` (${company})` : ""}`,
+          html: emailBody,
+        }),
+      });
+
+      if (!resendRes.ok) {
+        const errBody = await resendRes.text();
+        console.error("Resend API error:", resendRes.status, errBody);
+        return res.status(502).json({ ok: false, error: "Failed to send email. Please try again or email us directly." });
+      }
+
+      res.json({ ok: true });
+    } catch (error) {
+      console.error("Demo request error:", error);
+      res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
+    }
+  });
 
   app.use("/api", rlsMiddleware());
 

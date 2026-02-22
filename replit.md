@@ -53,3 +53,4 @@ Application is frozen for demos — only bug fixes allowed, no new features or c
 -   **TanStack React Query**: Asynchronous state management library.
 -   **Express.js**: Backend web application framework.
 -   **Drizzle ORM**: TypeScript ORM for PostgreSQL.
+-   **Resend**: Email delivery for demo request form (via fetch to Resend API, no SDK). Uses `RESEND_API_KEY` secret. Configured manually (not via Replit integration connector). Sends to hello@axiomdecisionlayer.com.

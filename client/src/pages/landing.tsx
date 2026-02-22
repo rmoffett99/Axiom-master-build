@@ -21,10 +21,12 @@ import {
 export default function LandingPage() {
   const orgLink = useOrgLink();
   const { toast } = useToast();
-  const [formData, setFormData] = useState({ name: "", email: "", company: "", message: "" });
+  const [formData, setFormData] = useState({ name: "", email: "", company: "", message: "", website: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
-  const handleDemoRequest = (e: React.FormEvent) => {
+  const handleDemoRequest = async (e: React.FormEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -34,17 +36,33 @@ export default function LandingPage() {
     }
 
     setIsSubmitting(true);
+    setSubmitError("");
 
-    const subject = encodeURIComponent("AXIOM Demo Request");
-    const body = encodeURIComponent(
-      `Name: ${formData.name}\nEmail: ${formData.email}\nCompany: ${formData.company}\n\n${formData.message || "I'd like to schedule a demo of AXIOM."}`
-    );
-    window.location.href = `mailto:hello@axiomdecisionlayer.com?subject=${subject}&body=${body}`;
+    try {
+      const res = await fetch("/api/demo-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
 
-    setTimeout(() => {
+      const data = await res.json();
+
+      if (data.ok) {
+        setIsSubmitted(true);
+      } else {
+        setSubmitError(data.error || "Something went wrong. Please try again.");
+      }
+    } catch {
+      setSubmitError("Network error. Please check your connection and try again.");
+    } finally {
       setIsSubmitting(false);
-      toast({ title: "Opening your email client", description: "If it doesn't open, email us directly at hello@axiomdecisionlayer.com" });
-    }, 1000);
+    }
+  };
+
+  const handleRequestAnother = () => {
+    setIsSubmitted(false);
+    setFormData({ name: "", email: "", company: "", message: "", website: "" });
+    setSubmitError("");
   };
 
   const scrollToDemo = (e: React.MouseEvent) => {
@@ -281,8 +299,35 @@ export default function LandingPage() {
             See how AXIOM captures decisions, tracks assumptions, and surfaces decision debt — in a live walkthrough tailored to your organization.
           </p>
 
+          {isSubmitted ? (
+            <div className="py-12 text-center" data-testid="demo-success">
+              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+                <Shield className="w-6 h-6 text-zinc-300" />
+              </div>
+              <p className="text-lg font-medium text-zinc-100 mb-1">Request received. We'll follow up shortly.</p>
+              <p className="text-sm text-zinc-500 mb-6">Typically within one business day.</p>
+              <button
+                onClick={handleRequestAnother}
+                className="text-sm text-zinc-400 hover:text-zinc-300 underline underline-offset-4"
+                data-testid="button-request-another"
+              >
+                Request another demo
+              </button>
+            </div>
+          ) : (
           <form onSubmit={handleDemoRequest} data-testid="form-demo-request">
             <div className="space-y-4 mb-6">
+              <div className="absolute opacity-0 pointer-events-none" style={{ position: "absolute", left: "-9999px" }} aria-hidden="true" tabIndex={-1}>
+                <label htmlFor="demo-website">Website</label>
+                <Input
+                  id="demo-website"
+                  type="text"
+                  value={formData.website}
+                  onChange={(e) => setFormData(prev => ({ ...prev, website: e.target.value }))}
+                  autoComplete="off"
+                  tabIndex={-1}
+                />
+              </div>
               <div>
                 <label htmlFor="demo-name" className="block text-sm font-medium text-zinc-300 mb-1.5">Name</label>
                 <Input
@@ -333,6 +378,9 @@ export default function LandingPage() {
                 />
               </div>
             </div>
+            {submitError && (
+              <p className="text-sm text-red-400 mb-3" data-testid="text-demo-error">{submitError}</p>
+            )}
             <Button
               type="submit"
               size="lg"
@@ -340,7 +388,7 @@ export default function LandingPage() {
               className="w-full sm:w-auto bg-zinc-100 text-zinc-900 text-base font-medium"
               data-testid="button-submit-demo"
             >
-              {isSubmitting ? "Opening Email..." : "Request Demo"}
+              {isSubmitting ? "Sending\u2026" : "Request Demo"}
             </Button>
             <p className="text-xs text-zinc-600 mt-3">
               Or email us directly at{" "}
@@ -349,6 +397,7 @@ export default function LandingPage() {
               </a>
             </p>
           </form>
+          )}
         </div>
       </section>
 
