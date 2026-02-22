@@ -34,6 +34,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useOrgLink } from "@/lib/use-org-link";
+import { useOrg } from "@/lib/org-context";
 import type { 
   DecisionWithDetails, 
   DecisionVersion, 
@@ -259,6 +260,8 @@ function AlertItem({ alert, onAcknowledge }: { alert: Alert; onAcknowledge: (id:
 
 export default function DecisionDetailPage() {
   const orgLink = useOrgLink();
+  const { activeOrg } = useOrg();
+  const isDemo = activeOrg?.slug === "axiom-demo";
   const [, params] = useRoute("/org/:orgSlug/decisions/:id");
   const { toast } = useToast();
 
@@ -543,7 +546,7 @@ export default function DecisionDetailPage() {
               <AssumptionCard 
                 key={assumption.id} 
                 assumption={assumption} 
-                onValidate={(id, status) => validateMutation.mutate({ id, status })}
+                onValidate={isDemo ? () => {} : (id, status) => validateMutation.mutate({ id, status })}
               />
             ))
           )}
@@ -616,7 +619,7 @@ export default function DecisionDetailPage() {
               <AlertItem 
                 key={alert.id} 
                 alert={alert} 
-                onAcknowledge={(id) => acknowledgeMutation.mutate(id)}
+                onAcknowledge={isDemo ? () => {} : (id) => acknowledgeMutation.mutate(id)}
               />
             ))
           )}

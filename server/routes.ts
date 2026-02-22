@@ -145,6 +145,13 @@ export async function registerRoutes(
     return orgs[0]?.id || '';
   }
 
+  async function isDemoOrg(req: any): Promise<boolean> {
+    const orgId = await resolveOrgId(req);
+    if (!orgId) return false;
+    const org = await storage.getOrganization(orgId);
+    return org?.slug === "axiom-demo";
+  }
+
   // Organizations
   app.get("/api/organizations", async (req, res) => {
     try {
@@ -228,6 +235,9 @@ export async function registerRoutes(
 
   app.post("/api/decisions", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = createDecisionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -297,6 +307,9 @@ export async function registerRoutes(
 
   app.post("/api/decisions/:id/amend", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = amendDecisionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -348,6 +361,9 @@ export async function registerRoutes(
   // Assumptions
   app.patch("/api/assumptions/:id", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = updateAssumptionSchema.safeParse(req.body);
       if (!parseResult.success) {
         return res.status(400).json({ 
@@ -432,6 +448,9 @@ export async function registerRoutes(
 
   app.post("/api/alerts/:id/acknowledge", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const orgId = await resolveOrgId(req);
       const users = await storage.getAllUsers(orgId);
       const userId = users[0]?.id;
@@ -479,6 +498,9 @@ export async function registerRoutes(
 
   app.post("/api/brain/proposals/:id/approve", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = z.object({
         approverId: z.string().min(1),
         approverRole: z.string().min(1),
@@ -508,6 +530,9 @@ export async function registerRoutes(
 
   app.post("/api/brain/proposals/:id/execute", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = z.object({
         executedBy: z.string().min(1),
       }).safeParse(req.body);
@@ -547,6 +572,9 @@ export async function registerRoutes(
 
   app.patch("/api/brain/automation", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = z.object({
         enabled: z.boolean(),
         disabledReason: z.string().optional(),
@@ -722,6 +750,9 @@ export async function registerRoutes(
 
   app.post("/api/brain/override", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = z.object({
         decisionId: z.string().uuid(),
         overriddenBy: z.string().min(1),
@@ -753,6 +784,9 @@ export async function registerRoutes(
 
   app.post("/api/brain/assumption-validation", async (req, res) => {
     try {
+      if (await isDemoOrg(req)) {
+        return res.status(403).json({ error: "Modifications are disabled in the demo workspace." });
+      }
       const parseResult = z.object({
         decisionId: z.string().uuid(),
         assumptionKey: z.string().min(1),

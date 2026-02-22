@@ -132,12 +132,19 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <div className="px-3 mb-2">
-            <Link href={activeOrgSlug ? `/org/${activeOrgSlug}/decisions/new` : "/decisions/new"} onClick={handleNavClick}>
-              <Button className="w-full justify-start gap-2" size="sm" data-testid="button-new-decision">
+            {activeOrg?.slug === "axiom-demo" ? (
+              <Button className="w-full justify-start gap-2 opacity-50 cursor-not-allowed" size="sm" disabled data-testid="button-new-decision">
                 <Plus className="w-4 h-4" />
                 New Decision
               </Button>
-            </Link>
+            ) : (
+              <Link href={activeOrgSlug ? `/org/${activeOrgSlug}/decisions/new` : "/decisions/new"} onClick={handleNavClick}>
+                <Button className="w-full justify-start gap-2" size="sm" data-testid="button-new-decision">
+                  <Plus className="w-4 h-4" />
+                  New Decision
+                </Button>
+              </Link>
+            )}
           </div>
         </SidebarGroup>
         <SidebarGroup>

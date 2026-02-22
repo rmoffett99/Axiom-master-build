@@ -7,7 +7,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
-import { OrgProvider } from "@/lib/org-context";
+import { OrgProvider, useOrg } from "@/lib/org-context";
+import { Eye } from "lucide-react";
 
 import LandingPage from "@/pages/landing";
 import DashboardPage from "@/pages/dashboard";
@@ -40,12 +41,24 @@ function OrgRoutes() {
   );
 }
 
+function DemoBanner() {
+  const { activeOrg } = useOrg();
+  if (activeOrg?.slug !== "axiom-demo") return null;
+  return (
+    <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 flex items-center justify-center gap-2" data-testid="banner-demo">
+      <Eye className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+      <span className="text-xs font-medium text-amber-700 dark:text-amber-300">You're viewing a demo workspace</span>
+    </div>
+  );
+}
+
 function AppLayout() {
   return (
     <SidebarProvider style={sidebarStyle}>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <div className="flex flex-col flex-1 min-w-0">
+          <DemoBanner />
           <header className="flex items-center justify-between gap-2 px-4 py-2 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
             <SidebarTrigger data-testid="button-sidebar-toggle" />
             <ThemeToggle />

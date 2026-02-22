@@ -32,6 +32,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useOrgLink } from "@/lib/use-org-link";
+import { useOrg } from "@/lib/org-context";
 import type { Alert, Decision } from "@shared/schema";
 
 interface AlertWithDecision extends Alert {
@@ -160,6 +161,8 @@ function AlertCard({ alert, onAcknowledge }: { alert: AlertWithDecision; onAckno
 }
 
 export default function AlertsPage() {
+  const { activeOrg } = useOrg();
+  const isDemo = activeOrg?.slug === "axiom-demo";
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const { toast } = useToast();
 
@@ -308,7 +311,7 @@ export default function AlertsPage() {
               <AlertCard 
                 key={alert.id} 
                 alert={alert} 
-                onAcknowledge={(id) => acknowledgeMutation.mutate(id)}
+                onAcknowledge={isDemo ? () => {} : (id) => acknowledgeMutation.mutate(id)}
               />
             ))
           )}

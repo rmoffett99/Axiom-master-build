@@ -38,6 +38,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useOrgLink } from "@/lib/use-org-link";
+import { useOrg } from "@/lib/org-context";
 import type { User, Team } from "@shared/schema";
 
 const decisionFormSchema = z.object({
@@ -67,9 +68,25 @@ const steps = [
 
 export default function DecisionNewPage() {
   const orgLink = useOrgLink();
+  const { activeOrg } = useOrg();
   const [currentStep, setCurrentStep] = useState(1);
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  if (activeOrg?.slug === "axiom-demo") {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Card className="w-full max-w-md mx-4">
+          <CardContent className="pt-6 text-center">
+            <p className="text-muted-foreground mb-4">Creating new decisions is disabled in the demo workspace.</p>
+            <Button variant="outline" onClick={() => navigate(orgLink("/decisions"))} data-testid="button-back-decisions">
+              Back to Decisions
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const { data: users } = useQuery<User[]>({
     queryKey: ["/api/users"],
