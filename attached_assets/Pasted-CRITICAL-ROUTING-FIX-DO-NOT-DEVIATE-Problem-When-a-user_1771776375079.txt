@@ -1,0 +1,56 @@
+CRITICAL ROUTING FIX — DO NOT DEVIATE
+
+Problem:
+When a user clicks “Enter Platform”, the app briefly renders a “Page not found / 404” state before redirecting to the Dashboard. This is unacceptable and must be permanently eliminated. This is caused by routing being evaluated before authentication state is fully resolved.
+
+MANDATORY REQUIREMENTS (ALL MUST BE MET):
+
+1. AUTH LOADING GATE (NON-NEGOTIABLE)
+- Introduce a global authentication readiness state (e.g. authReady or loading).
+- The application MUST NOT render routes, redirects, or 404 states until authentication resolution is COMPLETE.
+- While auth is resolving, render ONLY a full-screen loading state (no router, no fallback, no redirects).
+
+Example logic (conceptual):
+IF authReady === false:
+    render <FullScreenLoader />
+    RETURN
+ELSE:
+    render application router
+
+2. ABSOLUTELY NO 404 DURING AUTH CHECK
+- Under NO circumstances may a 404 / “Page not found” component render while auth is unresolved.
+- 404 routes must ONLY trigger for genuinely unknown paths AFTER auth is fully resolved.
+
+3. PROTECTED ROUTES MUST REDIRECT — NOT 404
+- Protected routes (e.g. /dashboard, /decisions, /alerts) MUST:
+    - Render the page if user is authenticated
+    - Redirect to /login (or equivalent) if unauthenticated
+- DO NOT use NotFound/404 as a fallback for unauthenticated users.
+
+Correct pattern:
+<Route path="/dashboard" element={ user ? <Dashboard /> : <Navigate to="/login" replace /> } />
+
+INCORRECT (FORBIDDEN):
+<Route path="/dashboard" element={ user ? <Dashboard /> : <NotFound /> } />
+
+4. CLIENT-SIDE NAVIGATION ONLY
+- “Enter Platform” MUST use client-side routing (navigate / Link).
+- Hard reloads (window.location, full refresh navigation) are FORBIDDEN.
+
+REQUIRED:
+navigate("/dashboard") OR <Link to="/dashboard" />
+
+FORBIDDEN:
+window.location.href = "/dashboard"
+
+5. PROFESSIONAL LOADING EXPERIENCE
+- While auth is resolving, display a neutral, branded loading screen (full viewport).
+- No flicker, no blank screen, no error states, no route changes.
+
+6. ACCEPTANCE CRITERIA (MUST PASS ALL):
+- Clicking “Enter Platform” NEVER shows a 404, even for a millisecond.
+- Hard refresh on /dashboard NEVER shows a 404.
+- Slow network or delayed auth STILL never shows a 404.
+- Only unknown URLs AFTER auth resolution may show 404.
+
+This is a production stability issue. Do not refactor unrelated code. Do not introduce new patterns. Implement exactly as specified and verify under slow auth conditions.

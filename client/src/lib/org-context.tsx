@@ -92,7 +92,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
     setLocation(`/org/${slug}/${currentSubPath}`);
   };
 
-  const showLoading = isOrgRoute && (isLoading || !activeOrg);
+  const needsRedirect = !isOrgRoute && location !== "/";
+  const showLoading = isLoading || (isOrgRoute && !activeOrg) || (needsRedirect && organizations.length === 0);
 
   return (
     <OrgContext.Provider
@@ -104,7 +105,14 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
         switchOrg,
       }}
     >
-      {showLoading ? null : children}
+      {showLoading ? (
+        <div className="min-h-screen w-full flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-muted-foreground/30 border-t-foreground rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          </div>
+        </div>
+      ) : children}
     </OrgContext.Provider>
   );
 }
