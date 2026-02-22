@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,11 +20,13 @@ import {
 
 export default function LandingPage() {
   const orgLink = useOrgLink();
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const [formData, setFormData] = useState({ name: "", email: "", company: "", message: "", website: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const handleDemoRequest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +49,10 @@ export default function LandingPage() {
 
       const data = await res.json();
 
-      if (data.ok) {
+      if (data.ok && data.redirectUrl) {
+        setIsRedirecting(true);
+        navigate(data.redirectUrl);
+      } else if (data.ok) {
         setIsSubmitted(true);
       } else {
         setSubmitError(data.error || "Something went wrong. Please try again.");
@@ -55,7 +60,9 @@ export default function LandingPage() {
     } catch {
       setSubmitError("Network error. Please check your connection and try again.");
     } finally {
-      setIsSubmitting(false);
+      if (!isRedirecting) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -388,7 +395,7 @@ export default function LandingPage() {
               className="w-full sm:w-auto bg-zinc-100 text-zinc-900 text-base font-medium"
               data-testid="button-submit-demo"
             >
-              {isSubmitting ? "Sending\u2026" : "Request Demo"}
+              {isRedirecting ? "Entering demo\u2026" : isSubmitting ? "Sending\u2026" : "Request Demo"}
             </Button>
             <p className="text-xs text-zinc-600 mt-3">
               Or email us directly at{" "}

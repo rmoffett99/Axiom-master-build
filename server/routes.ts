@@ -90,46 +90,55 @@ export async function registerRoutes(
         return res.status(400).json({ ok: false, error: "A valid email address is required." });
       }
 
+      req.session.demoUser = {
+        name: name || "",
+        email,
+        company: company || "",
+        role: "Demo Viewer",
+        orgSlug: "axiom-demo",
+        createdAt: new Date().toISOString(),
+      };
+
       const apiKey = process.env.RESEND_API_KEY;
-      if (!apiKey) {
-        console.error("RESEND_API_KEY not configured");
-        return res.status(500).json({ ok: false, error: "Email service not configured." });
+      if (apiKey) {
+        try {
+          const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+          const emailBody = [
+            `<h2>New AXIOM Demo Request</h2>`,
+            `<p><strong>Name:</strong> ${esc(name || "Not provided")}</p>`,
+            `<p><strong>Email:</strong> ${esc(email)}</p>`,
+            `<p><strong>Company:</strong> ${esc(company || "Not provided")}</p>`,
+            `<p><strong>Message:</strong> ${esc(message || "No message provided")}</p>`,
+            `<hr/>`,
+            `<p style="color:#888;font-size:12px;">Submitted at ${new Date().toISOString()}</p>`,
+          ].join("\n");
+
+          const resendRes = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              from: "AXIOM Demo <onboarding@resend.dev>",
+              to: "hello@axiomdecisionlayer.com",
+              reply_to: email,
+              subject: `Demo Request from ${name || email}${company ? ` (${company})` : ""}`,
+              html: emailBody,
+            }),
+          });
+
+          if (!resendRes.ok) {
+            const errBody = await resendRes.text();
+            console.error("Resend API error:", resendRes.status, errBody);
+          }
+        } catch (emailErr) {
+          console.error("Email send error (non-blocking):", emailErr);
+        }
       }
 
-      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-
-      const emailBody = [
-        `<h2>New AXIOM Demo Request</h2>`,
-        `<p><strong>Name:</strong> ${esc(name || "Not provided")}</p>`,
-        `<p><strong>Email:</strong> ${esc(email)}</p>`,
-        `<p><strong>Company:</strong> ${esc(company || "Not provided")}</p>`,
-        `<p><strong>Message:</strong> ${esc(message || "No message provided")}</p>`,
-        `<hr/>`,
-        `<p style="color:#888;font-size:12px;">Submitted at ${new Date().toISOString()}</p>`,
-      ].join("\n");
-
-      const resendRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "AXIOM Demo <onboarding@resend.dev>",
-          to: "hello@axiomdecisionlayer.com",
-          reply_to: email,
-          subject: `Demo Request from ${name || email}${company ? ` (${company})` : ""}`,
-          html: emailBody,
-        }),
-      });
-
-      if (!resendRes.ok) {
-        const errBody = await resendRes.text();
-        console.error("Resend API error:", resendRes.status, errBody);
-        return res.status(502).json({ ok: false, error: "Failed to send email. Please try again or email us directly." });
-      }
-
-      res.json({ ok: true });
+      res.json({ ok: true, redirectUrl: "/org/axiom-demo/dashboard" });
     } catch (error) {
       console.error("Demo request error:", error);
       res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
