@@ -1,0 +1,48 @@
+STOP. DO NOT CONTINUE “ARCHITECT REVIEW” OR GENERAL ITERATION.
+
+We have ONE issue to resolve: “Enter Platform” briefly shows “Page not found / 404” before loading the dashboard. This is unprofessional and must be eliminated completely.
+
+Your last message is NOT acceptable because it contains:
+- No proof the flash is gone
+- No before/after evidence
+- “Minor warnings” handwaving
+- No explicit change list
+
+MANDATORY ACTIONS (DO THESE IN ORDER, NO DEVIATION):
+
+1) REPRODUCTION VIDEO (REQUIRED)
+Record a short screen capture that shows ALL of the following:
+A) Hard refresh directly on: /dashboard
+B) Click “Enter Platform” from the marketing/home page
+C) Navigate to /decisions and /alerts
+D) Type a wrong URL (e.g. /does-not-exist) to confirm 404 only appears for truly unknown routes
+The recording must clearly show there is ZERO 404 flash during A–C.
+
+2) ROOT CAUSE + EXACT FILES CHANGED
+Provide:
+- The exact root cause (auth loading race? bad redirect? server rewrite? route guard?)
+- The exact files touched (full paths)
+- The exact change summary (bullet list)
+
+3) IMPLEMENT THE CORRECT FIX (IF NOT ALREADY DONE)
+The app MUST NOT render Router/Routes/404 until auth is resolved.
+Implement an “authReady/loading gate” at the top level BEFORE routes render:
+- If authReady/loading is false/true: render a full-screen loader ONLY.
+- 404 must never render during auth resolution.
+Protected routes must redirect to /login (or equivalent), NEVER to 404.
+
+4) ENTER PLATFORM BUTTON MUST USE CLIENT ROUTING
+Confirm “Enter Platform” uses navigate() or <Link>.
+window.location.* is forbidden.
+
+5) ZERO-WARNING POLICY FOR ROUTING PATHS
+Any “files not loading perfectly” warnings that relate to routing/navigation must be fixed or explicitly proven unrelated with logs + reason. No handwaving.
+
+ACCEPTANCE CRITERIA (PASS/FAIL):
+- Clicking “Enter Platform” NEVER shows “Page not found” even for a millisecond.
+- Hard refresh at /dashboard NEVER shows 404.
+- Slow network / delayed auth STILL never shows 404.
+- 404 shows ONLY for unknown URLs after auth is fully resolved.
+If ANY of these fail, the fix is not done.
+
+Do not claim success without the reproduction video and file-level proof.
