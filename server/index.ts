@@ -9,6 +9,9 @@ import { seedDatabase } from "./seed";
 const app = express();
 const httpServer = createServer(app);
 
+let isShuttingDown = false;
+let inFlightRequests = 0;
+
 declare module "http" {
   interface IncomingMessage {
     rawBody: unknown;
@@ -37,6 +40,33 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+
+app.get("/healthz", (_req, res) => {
+  res.status(200).send("ok");
+});
+
+app.get("/readyz", (_req, res) => {
+  res.status(200).send("ready");
+});
+
+app.use((req, res, next) => {
+  if (isShuttingDown) {
+    if (req.path.startsWith("/api")) {
+      res.set("Retry-After", "2");
+      return res.status(503).json({ error: "server_restarting", retryAfterSeconds: 2 });
+    }
+    return res.status(503).send("Service Unavailable");
+  }
+  inFlightRequests++;
+  const onDone = () => {
+    inFlightRequests--;
+    res.removeListener("finish", onDone);
+    res.removeListener("close", onDone);
+  };
+  res.on("finish", onDone);
+  res.on("close", onDone);
+  next();
+});
 
 const PgStore = pgSession(session);
 
@@ -143,19 +173,32 @@ process.on("unhandledRejection", (reason) => {
     () => {
       log(`serving on port ${port}`);
 
-      // Seed database AFTER server is listening so health checks pass
+      httpServer.keepAliveTimeout = 65000;
+      httpServer.headersTimeout = 66000;
+      httpServer.requestTimeout = 300000;
+      httpServer.timeout = 0;
+
       seedDatabase().catch((error) => {
         console.error("Error seeding database:", error);
       });
     },
   );
 
-  // Graceful shutdown — close server but let process drain naturally
   const shutdown = (signal: string) => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
     log(`${signal} received, shutting down gracefully`);
     httpServer.close(() => {
       log("HTTP server closed");
     });
+    let waited = 0;
+    const drainInterval = setInterval(() => {
+      if (inFlightRequests <= 0 || waited >= 25000) {
+        clearInterval(drainInterval);
+        log(`Drain complete (in-flight: ${inFlightRequests}, waited: ${waited}ms)`);
+      }
+      waited += 250;
+    }, 250);
   };
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));

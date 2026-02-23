@@ -1,0 +1,127 @@
+REPLIT AGENT — PRODUCTION HARDENING (B: NEVER BLINK) + (C: BULLETPROOF DEMO FLOW)
+DO NOT WANDER. IMPLEMENT ONLY WHAT IS SPECIFIED. IF ANY FILE/ROUTE NAME DIFFERS, ADAPT MINIMALLY WITHOUT REFACTORING.
+
+GOALS
+B) “Site never blinks”: make restarts invisible to users as much as possible on Replit autoscale.
+C) “Demo request flow bulletproof”: demo request must never fail silently, never double-provision, and must always confirm to user + notify us.
+
+NON-GOALS (ABSOLUTELY DO NOT)
+- No UI redesign, no route renames, no dependency adds, no schema changes unless explicitly required by the items below.
+- No new frameworks, queues, workers, cron systems.
+- No changing auth, pricing, or business logic unrelated to demo provisioning.
+- No new third-party services.
+
+========================
+PART 1 — “NEVER BLINK” HARDENING
+========================
+
+1) ADD EXPLICIT HEALTH ENDPOINTS (fast, no DB):
+- GET /healthz -> 200 "ok"
+- GET /readyz  -> 200 "ready" (optionally verify minimal app readiness WITHOUT DB calls; keep it instant)
+Do NOT change existing "/" static serving.
+
+2) SET SAFE SERVER TIMEOUTS (Node HTTP server):
+In the file where httpServer is created (or from app.listen return):
+- server.keepAliveTimeout = 65000
+- server.headersTimeout   = 66000
+- server.requestTimeout   = 300000  (5 min)
+- server.timeout          = 0        (no legacy socket timeout)
+Do not break websocket/SSE if present.
+
+3) GRACEFUL SHUTDOWN DRAINING (no user-visible 500s during SIGTERM):
+- Track in-flight requests with a counter middleware:
+  - increment on request start
+  - decrement on res 'finish' and 'close'
+- On SIGTERM/SIGINT:
+  - set a flag `isShuttingDown = true`
+  - immediately return 503 for NEW requests EXCEPT /healthz (still 200) and /readyz (still 200)
+  - call server.close()
+  - wait up to 25 seconds for in-flight requests to drain (poll every 250ms)
+  - after drain or timeout, exit gracefully (do NOT throw)
+
+4) RETURN A RETRYABLE RESPONSE DURING SHUTDOWN:
+For API routes while isShuttingDown:
+- respond 503 JSON: { "error": "server_restarting", "retryAfterSeconds": 2 }
+- set header: "Retry-After: 2"
+
+Deliverable for Part 1:
+- Minimal diff in server entry file(s) only.
+- No extra files unless unavoidable.
+
+========================
+PART 2 — BULLETPROOF DEMO REQUEST FLOW
+========================
+
+REQUIREMENTS (must satisfy all):
+A) Idempotent: same email/company submitted twice must NOT create two demo orgs.
+B) Reliable confirmation: user always gets a success response quickly (<= 2s).
+C) Safe provisioning: heavy provisioning runs after response; never blocks request.
+D) Observable: log a single structured line with a correlation id for each request.
+E) Notify: send an email to our inbox with the demo details OR log a “TODO: email” if email isn’t configured yet (no new external services added unless already in project).
+
+IMPLEMENTATION SPEC (no DB schema changes unless needed; prefer existing DB):
+1) Create/confirm a POST endpoint (use existing if present):
+- POST /api/request-demo
+Body fields (accept if present; validate minimally):
+  - companyName (string, required)
+  - workEmail (string, required)
+  - fullName (string, optional)
+  - role (string, optional)
+  - notes (string, optional)
+
+2) Idempotency key:
+- key = lowercased(trim(workEmail)) + "|" + lowercased(trim(companyName))
+- store a record in DB if there is an existing table suitable; if none exists, create a minimal table ONLY if the project already uses migrations (Drizzle). If migrations are not in use, DO NOT add schema; use an existing table or in-memory map as last resort with a clear comment that it resets on restart.
+
+3) Response behavior:
+- Always respond within 2 seconds with:
+  200 JSON:
+  {
+    "ok": true,
+    "status": "queued" | "already_exists",
+    "requestId": "<uuid>",
+    "message": "Demo request received. Check your email shortly."
+  }
+- Never respond with stack traces.
+
+4) Async provisioning (after response):
+- If status is "queued", schedule provisioning via setImmediate() (or queueMicrotask) so it runs after res finishes:
+  - create or reuse demo org
+  - seed demo data only if not already seeded
+  - generate demo login link/token if your app supports it; otherwise skip
+  - mark request completed/fulfilled in DB record
+- On error: mark record failed and log error with requestId.
+
+5) Notification:
+- If project already has email sending configured, send an internal email:
+  Subject: "New Demo Request — <companyName>"
+  Body includes: fullName, workEmail, companyName, role, notes, requestId, timestamp, outcome.
+- If no email config exists, do NOT add a new service.
+  Instead: log a single line:
+  "DEMO_REQUEST_NOTIFY_TODO" with same fields.
+
+6) Anti-bot minimum (no captcha/services):
+- Add a hidden honeypot field support:
+  - accept field: website (string)
+  - if website is non-empty -> immediately return 200 {ok:true,status:"queued"} but DO NOT provision and DO NOT notify.
+This silently drops bots.
+
+Deliverable for Part 2:
+- Minimal diff in API route file(s) + any DB access layer file(s) already present.
+- If you must add a DB table, add only one migration and one model, nothing else.
+- Provide a short test list (curl examples).
+
+========================
+FINAL OUTPUT REQUIREMENTS
+========================
+- Provide ONE unified diff patch covering both parts.
+- Provide the final list of files changed.
+- Provide 6 quick manual tests:
+  1) GET /healthz -> 200
+  2) GET /readyz -> 200
+  3) POST /api/request-demo valid -> 200 queued <2s
+  4) Repeat same request -> 200 already_exists
+  5) POST with website honeypot -> 200 but no provisioning/no notify
+  6) Simulate SIGTERM (or stop deployment) and confirm new requests return 503 server_restarting while old completes.
+
+STOP WHEN DONE.

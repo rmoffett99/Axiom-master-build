@@ -61,12 +61,15 @@ const demoRateLimit = new Map<string, { count: number; resetAt: number }>();
 const DEMO_RATE_LIMIT = 5;
 const DEMO_RATE_WINDOW = 60 * 60 * 1000;
 
+const demoIdempotencyMap = new Map<string, { requestId: string; status: string; createdAt: string }>();
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
 
   app.post("/api/demo-request", async (req, res) => {
+    const requestId = crypto.randomUUID();
     try {
       const ip = req.ip || req.socket.remoteAddress || "unknown";
       const now = Date.now();
@@ -80,41 +83,82 @@ export async function registerRoutes(
         demoRateLimit.set(ip, { count: 1, resetAt: now + DEMO_RATE_WINDOW });
       }
 
-      const { name, email, company, message, website } = req.body;
+      const { name, email, company, message, website, fullName, role, notes, companyName, workEmail } = req.body;
+
+      const resolvedEmail = workEmail || email;
+      const resolvedCompany = companyName || company || "";
+      const resolvedName = fullName || name || "";
+      const resolvedRole = role || "Demo Viewer";
+      const resolvedNotes = notes || message || "";
 
       if (website) {
-        return res.json({ ok: true });
+        console.log(`DEMO_REQUEST_HONEYPOT requestId=${requestId} ip=${ip}`);
+        return res.json({ ok: true, status: "queued", requestId, message: "Demo request received. Check your email shortly." });
       }
 
-      if (!email || typeof email !== "string" || !email.includes("@")) {
+      if (!resolvedEmail || typeof resolvedEmail !== "string" || !resolvedEmail.includes("@")) {
         return res.status(400).json({ ok: false, error: "A valid email address is required." });
       }
 
+      const idempotencyKey = `${resolvedEmail.trim().toLowerCase()}|${resolvedCompany.trim().toLowerCase()}`;
+      const existing = demoIdempotencyMap.get(idempotencyKey);
+      if (existing) {
+        console.log(`DEMO_REQUEST requestId=${requestId} status=already_exists idempotencyKey=${idempotencyKey}`);
+        req.session.demoUser = {
+          name: resolvedName,
+          email: resolvedEmail,
+          company: resolvedCompany,
+          role: resolvedRole,
+          orgSlug: "axiom-demo",
+          createdAt: existing.createdAt,
+        };
+        return res.json({
+          ok: true,
+          status: "already_exists",
+          requestId,
+          message: "Demo request received. Check your email shortly.",
+          redirectUrl: "/org/axiom-demo/dashboard",
+        });
+      }
+
+      const createdAt = new Date().toISOString();
+      demoIdempotencyMap.set(idempotencyKey, { requestId, status: "queued", createdAt });
+
       req.session.demoUser = {
-        name: name || "",
-        email,
-        company: company || "",
-        role: "Demo Viewer",
+        name: resolvedName,
+        email: resolvedEmail,
+        company: resolvedCompany,
+        role: resolvedRole,
         orgSlug: "axiom-demo",
-        createdAt: new Date().toISOString(),
+        createdAt,
       };
 
-      const apiKey = process.env.RESEND_API_KEY;
-      if (apiKey) {
-        try {
-          const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      console.log(`DEMO_REQUEST requestId=${requestId} status=queued email=${resolvedEmail} company=${resolvedCompany} name=${resolvedName}`);
 
+      res.json({
+        ok: true,
+        status: "queued",
+        requestId,
+        message: "Demo request received. Check your email shortly.",
+        redirectUrl: "/org/axiom-demo/dashboard",
+      });
+
+      setImmediate(() => {
+        const apiKey = process.env.RESEND_API_KEY;
+        if (apiKey) {
+          const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
           const emailBody = [
             `<h2>New AXIOM Demo Request</h2>`,
-            `<p><strong>Name:</strong> ${esc(name || "Not provided")}</p>`,
-            `<p><strong>Email:</strong> ${esc(email)}</p>`,
-            `<p><strong>Company:</strong> ${esc(company || "Not provided")}</p>`,
-            `<p><strong>Message:</strong> ${esc(message || "No message provided")}</p>`,
+            `<p><strong>Name:</strong> ${esc(resolvedName || "Not provided")}</p>`,
+            `<p><strong>Email:</strong> ${esc(resolvedEmail)}</p>`,
+            `<p><strong>Company:</strong> ${esc(resolvedCompany || "Not provided")}</p>`,
+            `<p><strong>Role:</strong> ${esc(resolvedRole)}</p>`,
+            `<p><strong>Notes:</strong> ${esc(resolvedNotes || "No message provided")}</p>`,
             `<hr/>`,
-            `<p style="color:#888;font-size:12px;">Submitted at ${new Date().toISOString()}</p>`,
+            `<p style="color:#888;font-size:12px;">Request ID: ${requestId} | Submitted at ${createdAt}</p>`,
           ].join("\n");
 
-          const resendRes = await fetch("https://api.resend.com/emails", {
+          fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${apiKey}`,
@@ -123,24 +167,28 @@ export async function registerRoutes(
             body: JSON.stringify({
               from: "AXIOM Demo <onboarding@resend.dev>",
               to: "hello@axiomdecisionlayer.com",
-              reply_to: email,
-              subject: `Demo Request from ${name || email}${company ? ` (${company})` : ""}`,
+              reply_to: resolvedEmail,
+              subject: `Demo Request from ${resolvedName || resolvedEmail}${resolvedCompany ? ` (${resolvedCompany})` : ""}`,
               html: emailBody,
             }),
+          }).then(async (resendRes) => {
+            if (!resendRes.ok) {
+              const errBody = await resendRes.text();
+              console.error(`DEMO_REQUEST_EMAIL_FAIL requestId=${requestId} status=${resendRes.status} body=${errBody}`);
+            } else {
+              demoIdempotencyMap.set(idempotencyKey, { requestId, status: "fulfilled", createdAt });
+              console.log(`DEMO_REQUEST_EMAIL_SENT requestId=${requestId}`);
+            }
+          }).catch((emailErr) => {
+            console.error(`DEMO_REQUEST_EMAIL_ERROR requestId=${requestId}`, emailErr);
           });
-
-          if (!resendRes.ok) {
-            const errBody = await resendRes.text();
-            console.error("Resend API error:", resendRes.status, errBody);
-          }
-        } catch (emailErr) {
-          console.error("Email send error (non-blocking):", emailErr);
+        } else {
+          console.log(`DEMO_REQUEST_NOTIFY_TODO requestId=${requestId} email=${resolvedEmail} company=${resolvedCompany} name=${resolvedName} role=${resolvedRole} notes=${resolvedNotes} timestamp=${createdAt}`);
+          demoIdempotencyMap.set(idempotencyKey, { requestId, status: "fulfilled", createdAt });
         }
-      }
-
-      res.json({ ok: true, redirectUrl: "/org/axiom-demo/dashboard" });
+      });
     } catch (error) {
-      console.error("Demo request error:", error);
+      console.error(`DEMO_REQUEST_ERROR requestId=${requestId}`, error);
       res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
     }
   });
