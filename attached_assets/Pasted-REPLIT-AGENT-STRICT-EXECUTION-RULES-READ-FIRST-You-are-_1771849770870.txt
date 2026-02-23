@@ -1,0 +1,42 @@
+REPLIT AGENT — STRICT EXECUTION RULES (READ FIRST)
+
+You are NOT allowed to do anything that is not explicitly requested below.
+If something is unclear, STOP and ask ONE question. Do not guess.
+Do not refactor, rename, reformat, reorganize folders, change tooling, or “improve” anything unless asked.
+Do not add new dependencies, frameworks, or files unless explicitly requested.
+Do not change UI copy, styling, routes, database schemas, auth, or env settings unless explicitly requested.
+Do not touch DNS, Replit deployment settings, or secrets.
+Do not implement “nice-to-haves.”
+
+TASK (ONLY THIS):
+Fix the Replit runtime termination issue: "command finished with error [node ./dist/index.cjs]: signal: terminated"
+Implement ONLY the minimal hardening needed:
+1) Ensure the server listens on process.env.PORT and binds to 0.0.0.0.
+2) Add a basic GET "/" health endpoint that returns 200 OK quickly.
+3) Add graceful shutdown handlers for SIGTERM and SIGINT that close the server then exit.
+4) Move any heavy startup tasks so they run AFTER the server begins listening (do not remove them; just defer them).
+5) Add logging for uncaughtException and unhandledRejection (log only; do not change business logic).
+
+NON-GOALS (DO NOT DO):
+- Do NOT change build commands, package scripts, TS config, bundler config, or output format unless REQUIRED to make the above work.
+- Do NOT refactor existing application structure.
+- Do NOT add monitoring, queues, cron jobs, workers, clustering, or performance tweaks.
+- Do NOT change dependencies, versions, or lockfiles unless REQUIRED to compile.
+
+WHERE TO EDIT:
+- Edit ONLY the entry file that corresponds to ./dist/index.cjs at runtime (the source file that builds into it, e.g. src/index.ts or src/server.ts).
+- If multiple candidates exist, identify the true entrypoint by searching for the listen()/createServer() call and the build mapping. Choose the smallest-change location.
+
+DELIVERABLES:
+A) Provide a single unified diff patch of ONLY the lines changed.
+B) Provide the final updated entry file content.
+C) Provide a short verification checklist:
+   - what port/log should appear on start
+   - curl test for GET /
+   - confirm SIGTERM log appears on termination
+
+STOP CONDITIONS:
+- If the app is not Express (Fastify/Hono/HTTP server), still apply the same rules using that framework’s equivalent.
+- If you cannot find where the server is started, STOP and ask one question: “What file is the server entrypoint that builds into dist/index.cjs?”
+
+DO EXACTLY THIS. NOTHING ELSE.

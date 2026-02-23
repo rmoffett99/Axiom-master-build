@@ -95,14 +95,15 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  // Seed database with initial data
-  try {
-    await seedDatabase();
-  } catch (error) {
-    console.error("Error seeding database:", error);
-  }
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
 
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+(async () => {
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
@@ -141,6 +142,27 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+
+      // Seed database AFTER server is listening so health checks pass
+      seedDatabase().catch((error) => {
+        console.error("Error seeding database:", error);
+      });
     },
   );
+
+  // Graceful shutdown
+  const shutdown = (signal: string) => {
+    log(`${signal} received, shutting down gracefully`);
+    httpServer.close(() => {
+      log("HTTP server closed");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      log("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 })();
