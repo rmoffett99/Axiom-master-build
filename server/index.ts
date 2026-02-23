@@ -150,17 +150,12 @@ process.on("unhandledRejection", (reason) => {
     },
   );
 
-  // Graceful shutdown
+  // Graceful shutdown — close server but let process drain naturally
   const shutdown = (signal: string) => {
     log(`${signal} received, shutting down gracefully`);
     httpServer.close(() => {
       log("HTTP server closed");
-      process.exit(0);
     });
-    setTimeout(() => {
-      log("Forced shutdown after timeout");
-      process.exit(1);
-    }, 10000);
   };
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
