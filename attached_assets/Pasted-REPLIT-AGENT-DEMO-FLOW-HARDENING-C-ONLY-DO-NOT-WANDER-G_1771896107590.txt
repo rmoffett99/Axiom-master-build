@@ -1,0 +1,141 @@
+REPLIT AGENT — DEMO FLOW HARDENING (C ONLY) — DO NOT WANDER
+
+GOAL:
+Make “Request Demo” bulletproof:
+- Never lose a lead
+- Never double-provision
+- Always respond fast (<2s)
+- Provision asynchronously
+- Notify internally (email if already configured; otherwise log a TODO line)
+- Silently drop bots (honeypot)
+
+ABSOLUTE NON-GOALS:
+- Do NOT change unrelated routes, UI, styling, auth, pricing, schema (unless explicitly required below), dependencies, build/deploy config.
+- Do NOT add external services (no new email providers, queues, captcha, webhooks).
+- Do NOT refactor the app structure.
+
+SCOPE:
+Implement/upgrade ONE endpoint: POST /api/request-demo
+(If the project already uses a different endpoint for Request Demo, keep that endpoint and alias it to /api/request-demo without breaking existing clients.)
+
+========================
+REQUIREMENTS (MUST PASS)
+========================
+
+1) INPUT + VALIDATION (minimal, strict):
+Accept JSON body with:
+- companyName (required string, 2-120 chars)
+- workEmail  (required string, basic email format)
+- fullName   (optional string, <=120)
+- role       (optional string, <=120)
+- notes      (optional string, <=1000)
+- website    (optional string honeypot; see bot rule)
+
+Return 400 JSON if required fields missing/invalid:
+{ ok:false, error:"invalid_request" }
+
+2) BOT HONEYPOT (silent drop):
+If body.website exists AND trim(website) is non-empty:
+- Immediately return 200 JSON { ok:true, status:"queued", requestId:"<uuid>" }
+- DO NOT provision
+- DO NOT notify
+- DO NOT log sensitive details
+
+3) IDEMPOTENCY (NO DOUBLE DEMOS):
+Define idempotencyKey:
+lower(trim(workEmail)) + "|" + lower(trim(companyName))
+
+If a request with same idempotencyKey already exists:
+- Return 200 JSON { ok:true, status:"already_exists", requestId:"<existing_requestId>" }
+- Do NOT provision again
+- Do NOT notify again (optional: you may log a dedupe event)
+
+4) FAST RESPONSE (<2s) + ASYNC PROVISIONING:
+For new request:
+- Create a request record with status "queued" and requestId (uuid)
+- Respond immediately (do NOT wait for provisioning):
+  200 JSON:
+  {
+    ok:true,
+    status:"queued",
+    requestId:"<uuid>",
+    message:"Demo request received. We’ll reach out shortly."
+  }
+
+Then AFTER response finishes (setImmediate / queueMicrotask):
+- Provision demo resources safely (idempotent provisioning):
+  a) Create or reuse demo org for this requestId/idempotencyKey
+  b) Seed demo data only if not already seeded for that org
+  c) Create a demo access link/token ONLY if project already supports it
+- Update request record status to "fulfilled" or "failed"
+- On failure: store errorMessage (truncated) and log with requestId
+
+5) PERSISTENCE (MUST SURVIVE RESTARTS):
+Use the existing Postgres/Drizzle connection already in the project.
+Create a minimal table ONLY if there is no suitable existing table.
+
+If migrations are already used (Drizzle):
+- Add ONE migration creating table: demo_requests
+  Columns:
+  - id (uuid primary key)
+  - idempotency_key (text unique not null)
+  - company_name (text not null)
+  - work_email (text not null)
+  - full_name (text)
+  - role (text)
+  - notes (text)
+  - status (text not null)  // queued|fulfilled|failed
+  - error_message (text)
+  - created_at (timestamp default now)
+  - updated_at (timestamp default now)
+
+If migrations are NOT used:
+- Do NOT introduce a migration system.
+- Instead, use an existing table OR a minimal “demo_requests” table if the project already has a way to run SQL at startup.
+- If neither is possible, STOP and ask ONE question: “What persistence method should we use for demo requests (existing table name or enable Drizzle migrations)?”
+
+6) INTERNAL NOTIFICATION (NO NEW SERVICES):
+If the project already has outbound email configured (existing util/service):
+- Send one internal email ONCE for queued new requests only:
+  Subject: "New Demo Request — <companyName>"
+  Body includes: companyName, workEmail, fullName, role, notes, requestId, timestamp, status
+Else:
+- Log exactly ONE line after creating request:
+  DEMO_REQUEST_NOTIFY_TODO {"requestId":"...","companyName":"...","workEmail":"...","fullName":"...","role":"...","ts":"..."}
+Do not log notes if they could contain sensitive info; truncate notes to 200 chars if logged.
+
+7) SECURITY/PRIVACY:
+- Never return stack traces
+- Never log full request bodies
+- Sanitize strings (trim)
+- Rate limiting NOT required in this task
+
+========================
+WHERE TO IMPLEMENT
+========================
+- Use existing Express router patterns in the project.
+- Place the route under existing /api router file (where other /api endpoints exist).
+- Reuse existing DB connection + Drizzle client.
+
+========================
+DELIVERABLES
+========================
+A) ONE unified diff patch only (minimal changes).
+B) List of files changed.
+C) 4 quick manual tests (curl):
+
+1) New request:
+curl -s -X POST <BASE>/api/request-demo -H "Content-Type: application/json" -d '{"companyName":"Acme","workEmail":"a@acme.com"}'
+
+2) Duplicate request (same email+company):
+(re-run #1) -> status "already_exists" with same requestId
+
+3) Honeypot:
+curl -s -X POST <BASE>/api/request-demo -H "Content-Type: application/json" -d '{"companyName":"Acme","workEmail":"a@acme.com","website":"spam"}'
+-> 200 ok queued, BUT no provisioning + no notify
+
+4) Invalid:
+curl -s -X POST <BASE>/api/request-demo -H "Content-Type: application/json" -d '{"companyName":"","workEmail":"nope"}'
+-> 400 invalid_request
+
+STOP WHEN DONE. DO NOT IMPLEMENT ANYTHING ELSE.

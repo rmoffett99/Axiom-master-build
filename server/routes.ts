@@ -18,6 +18,7 @@ import {
   assumptionValidationHistory,
   auditAccessLog,
   auditExportLog,
+  demoRequests,
 } from "@shared/schema";
 import { eq, desc, and, gte, lte, ilike, sql, type SQL } from "drizzle-orm";
 import {
@@ -57,108 +58,104 @@ const updateAssumptionSchema = z.object({
   status: z.enum(["valid", "expired", "invalidated", "pending_review"]),
 });
 
-const demoRateLimit = new Map<string, { count: number; resetAt: number }>();
-const DEMO_RATE_LIMIT = 5;
-const DEMO_RATE_WINDOW = 60 * 60 * 1000;
+const demoRequestSchema = z.object({
+  companyName: z.string().min(2).max(120),
+  workEmail: z.string().min(3).max(254).email(),
+  fullName: z.string().max(120).optional(),
+  role: z.string().max(120).optional(),
+  notes: z.string().max(1000).optional(),
+  website: z.string().optional(),
+  name: z.string().optional(),
+  email: z.string().optional(),
+  company: z.string().optional(),
+  message: z.string().optional(),
+});
 
-const demoIdempotencyMap = new Map<string, { requestId: string; status: string; createdAt: string }>();
+async function handleDemoRequest(req: any, res: any) {
+  const requestId = crypto.randomUUID();
+  try {
+    const raw = req.body || {};
+    const resolvedBody = {
+      companyName: (raw.companyName || raw.company || "").trim(),
+      workEmail: (raw.workEmail || raw.email || "").trim(),
+      fullName: (raw.fullName || raw.name || "").trim() || undefined,
+      role: (raw.role || "").trim() || undefined,
+      notes: (raw.notes || raw.message || "").trim() || undefined,
+      website: raw.website,
+    };
 
-export async function registerRoutes(
-  httpServer: Server,
-  app: Express
-): Promise<Server> {
+    if (typeof resolvedBody.website === "string" && resolvedBody.website.trim().length > 0) {
+      return res.json({ ok: true, status: "queued", requestId });
+    }
+    delete resolvedBody.website;
 
-  app.post("/api/demo-request", async (req, res) => {
-    const requestId = crypto.randomUUID();
-    try {
-      const ip = req.ip || req.socket.remoteAddress || "unknown";
-      const now = Date.now();
-      const entry = demoRateLimit.get(ip);
-      if (entry && now < entry.resetAt) {
-        if (entry.count >= DEMO_RATE_LIMIT) {
-          return res.status(429).json({ ok: false, error: "Too many requests. Please try again later." });
-        }
-        entry.count++;
-      } else {
-        demoRateLimit.set(ip, { count: 1, resetAt: now + DEMO_RATE_WINDOW });
-      }
+    const parsed = demoRequestSchema.pick({
+      companyName: true,
+      workEmail: true,
+      fullName: true,
+      role: true,
+      notes: true,
+    }).safeParse(resolvedBody);
+    if (!parsed.success) {
+      return res.status(400).json({ ok: false, error: "invalid_request" });
+    }
 
-      const { name, email, company, message, website, fullName, role, notes, companyName, workEmail } = req.body;
+    const { companyName, workEmail, fullName, role, notes } = parsed.data;
+    const idempotencyKey = `${workEmail.toLowerCase()}|${companyName.toLowerCase()}`;
 
-      const resolvedEmail = workEmail || email;
-      const resolvedCompany = companyName || company || "";
-      const resolvedName = fullName || name || "";
-      const resolvedRole = role || "Demo Viewer";
-      const resolvedNotes = notes || message || "";
+    const db = getDb();
+    const existing = await db.select({ id: demoRequests.id, status: demoRequests.status })
+      .from(demoRequests)
+      .where(eq(demoRequests.idempotencyKey, idempotencyKey))
+      .limit(1);
 
-      if (website) {
-        console.log(`DEMO_REQUEST_HONEYPOT requestId=${requestId} ip=${ip}`);
-        return res.json({ ok: true, status: "queued", requestId, message: "Demo request received. Check your email shortly." });
-      }
-
-      if (!resolvedEmail || typeof resolvedEmail !== "string" || !resolvedEmail.includes("@")) {
-        return res.status(400).json({ ok: false, error: "A valid email address is required." });
-      }
-
-      const idempotencyKey = `${resolvedEmail.trim().toLowerCase()}|${resolvedCompany.trim().toLowerCase()}`;
-      const existing = demoIdempotencyMap.get(idempotencyKey);
-      if (existing) {
-        console.log(`DEMO_REQUEST requestId=${requestId} status=already_exists idempotencyKey=${idempotencyKey}`);
-        req.session.demoUser = {
-          name: resolvedName,
-          email: resolvedEmail,
-          company: resolvedCompany,
-          role: resolvedRole,
-          orgSlug: "axiom-demo",
-          createdAt: existing.createdAt,
-        };
-        return res.json({
-          ok: true,
-          status: "already_exists",
-          requestId,
-          message: "Demo request received. Check your email shortly.",
-          redirectUrl: "/org/axiom-demo/dashboard",
-        });
-      }
-
-      const createdAt = new Date().toISOString();
-      demoIdempotencyMap.set(idempotencyKey, { requestId, status: "queued", createdAt });
-
-      req.session.demoUser = {
-        name: resolvedName,
-        email: resolvedEmail,
-        company: resolvedCompany,
-        role: resolvedRole,
-        orgSlug: "axiom-demo",
-        createdAt,
-      };
-
-      console.log(`DEMO_REQUEST requestId=${requestId} status=queued email=${resolvedEmail} company=${resolvedCompany} name=${resolvedName}`);
-
-      res.json({
+    if (existing.length > 0) {
+      console.log(`DEMO_REQUEST requestId=${requestId} status=already_exists idempotencyKey=${idempotencyKey}`);
+      return res.json({
         ok: true,
-        status: "queued",
-        requestId,
-        message: "Demo request received. Check your email shortly.",
-        redirectUrl: "/org/axiom-demo/dashboard",
+        status: "already_exists",
+        requestId: existing[0].id,
       });
+    }
 
-      setImmediate(() => {
+    const [inserted] = await db.insert(demoRequests).values({
+      idempotencyKey,
+      companyName,
+      workEmail,
+      fullName: fullName || null,
+      role: role || null,
+      notes: notes || null,
+      status: "queued",
+    }).returning({ id: demoRequests.id });
+
+    const savedId = inserted.id;
+    console.log(`DEMO_REQUEST requestId=${savedId} status=queued email=${workEmail} company=${companyName}`);
+
+    res.json({
+      ok: true,
+      status: "queued",
+      requestId: savedId,
+      message: "Demo request received. We'll reach out shortly.",
+    });
+
+    setImmediate(async () => {
+      try {
         const apiKey = process.env.RESEND_API_KEY;
         if (apiKey) {
           const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+          const ts = new Date().toISOString();
           const emailBody = [
             `<h2>New AXIOM Demo Request</h2>`,
-            `<p><strong>Name:</strong> ${esc(resolvedName || "Not provided")}</p>`,
-            `<p><strong>Email:</strong> ${esc(resolvedEmail)}</p>`,
-            `<p><strong>Company:</strong> ${esc(resolvedCompany || "Not provided")}</p>`,
-            `<p><strong>Role:</strong> ${esc(resolvedRole)}</p>`,
-            `<p><strong>Notes:</strong> ${esc(resolvedNotes || "No message provided")}</p>`,
+            `<p><strong>Company:</strong> ${esc(companyName)}</p>`,
+            `<p><strong>Email:</strong> ${esc(workEmail)}</p>`,
+            `<p><strong>Name:</strong> ${esc(fullName || "Not provided")}</p>`,
+            `<p><strong>Role:</strong> ${esc(role || "Not provided")}</p>`,
+            `<p><strong>Notes:</strong> ${esc(notes ? notes.substring(0, 200) : "None")}</p>`,
             `<hr/>`,
-            `<p style="color:#888;font-size:12px;">Request ID: ${requestId} | Submitted at ${createdAt}</p>`,
+            `<p style="color:#888;font-size:12px;">Request ID: ${savedId} | ${ts}</p>`,
           ].join("\n");
 
-          fetch("https://api.resend.com/emails", {
+          const resendRes = await fetch("https://api.resend.com/emails", {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${apiKey}`,
@@ -167,31 +164,52 @@ export async function registerRoutes(
             body: JSON.stringify({
               from: "AXIOM Demo <onboarding@resend.dev>",
               to: "hello@axiomdecisionlayer.com",
-              reply_to: resolvedEmail,
-              subject: `Demo Request from ${resolvedName || resolvedEmail}${resolvedCompany ? ` (${resolvedCompany})` : ""}`,
+              reply_to: workEmail,
+              subject: `New Demo Request — ${companyName}`,
               html: emailBody,
             }),
-          }).then(async (resendRes) => {
-            if (!resendRes.ok) {
-              const errBody = await resendRes.text();
-              console.error(`DEMO_REQUEST_EMAIL_FAIL requestId=${requestId} status=${resendRes.status} body=${errBody}`);
-            } else {
-              demoIdempotencyMap.set(idempotencyKey, { requestId, status: "fulfilled", createdAt });
-              console.log(`DEMO_REQUEST_EMAIL_SENT requestId=${requestId}`);
-            }
-          }).catch((emailErr) => {
-            console.error(`DEMO_REQUEST_EMAIL_ERROR requestId=${requestId}`, emailErr);
           });
+
+          if (!resendRes.ok) {
+            const errBody = await resendRes.text();
+            console.error(`DEMO_REQUEST_EMAIL_FAIL requestId=${savedId} status=${resendRes.status} body=${errBody}`);
+            await db.update(demoRequests)
+              .set({ status: "failed", errorMessage: `Email send failed: ${resendRes.status}`, updatedAt: new Date() })
+              .where(eq(demoRequests.id, savedId));
+          } else {
+            await db.update(demoRequests)
+              .set({ status: "fulfilled", updatedAt: new Date() })
+              .where(eq(demoRequests.id, savedId));
+            console.log(`DEMO_REQUEST_EMAIL_SENT requestId=${savedId}`);
+          }
         } else {
-          console.log(`DEMO_REQUEST_NOTIFY_TODO requestId=${requestId} email=${resolvedEmail} company=${resolvedCompany} name=${resolvedName} role=${resolvedRole} notes=${resolvedNotes} timestamp=${createdAt}`);
-          demoIdempotencyMap.set(idempotencyKey, { requestId, status: "fulfilled", createdAt });
+          console.log(`DEMO_REQUEST_NOTIFY_TODO ${JSON.stringify({ requestId: savedId, companyName, workEmail, fullName, role, ts: new Date().toISOString() })}`);
+          await db.update(demoRequests)
+            .set({ status: "fulfilled", updatedAt: new Date() })
+            .where(eq(demoRequests.id, savedId));
         }
-      });
-    } catch (error) {
-      console.error(`DEMO_REQUEST_ERROR requestId=${requestId}`, error);
-      res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
-    }
-  });
+      } catch (asyncErr: any) {
+        console.error(`DEMO_REQUEST_ASYNC_ERROR requestId=${savedId}`, asyncErr?.message || asyncErr);
+        try {
+          await getDb().update(demoRequests)
+            .set({ status: "failed", errorMessage: String(asyncErr?.message || "unknown").substring(0, 500), updatedAt: new Date() })
+            .where(eq(demoRequests.id, savedId));
+        } catch {}
+      }
+    });
+  } catch (error) {
+    console.error(`DEMO_REQUEST_ERROR requestId=${requestId}`, error);
+    res.status(500).json({ ok: false, error: "Something went wrong. Please try again." });
+  }
+}
+
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express
+): Promise<Server> {
+
+  app.post("/api/demo-request", handleDemoRequest);
+  app.post("/api/request-demo", handleDemoRequest);
 
   app.use("/api", rlsMiddleware());
 

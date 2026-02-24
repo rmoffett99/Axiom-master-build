@@ -489,3 +489,21 @@ export interface DashboardStats {
   debtTrend: { date: string; score: number }[];
   topRiskyDecisions: DecisionWithDetails[];
 }
+
+export const demoRequests = pgTable("demo_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  companyName: text("company_name").notNull(),
+  workEmail: text("work_email").notNull(),
+  fullName: text("full_name"),
+  role: text("role"),
+  notes: text("notes"),
+  status: text("status").notNull().default("queued"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const insertDemoRequestSchema = createInsertSchema(demoRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertDemoRequest = z.infer<typeof insertDemoRequestSchema>;
+export type DemoRequest = typeof demoRequests.$inferSelect;
