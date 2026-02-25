@@ -93,7 +93,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   };
 
   const needsRedirect = !isOrgRoute && location !== "/";
-  const showLoading = isLoading || (isOrgRoute && !activeOrg) || (needsRedirect && organizations.length === 0);
+  const showLoading = isLoading || (isOrgRoute && !activeOrg) || needsRedirect;
 
   return (
     <OrgContext.Provider
