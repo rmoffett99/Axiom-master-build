@@ -1,0 +1,91 @@
+You are acting as a senior, highly competent full-stack engineer with strong production SaaS experience. Execute the following precisely. Do not reinterpret scope, do not add features, and do not refactor beyond what is explicitly requested.
+
+PROJECT CONTEXT
+AXIOM is a multi-tenant, audit-grade decision intelligence platform. Stability, correctness, and professionalism matter more than cleverness. Avoid experimental patterns. Favor boring, proven solutions.
+
+CURRENT STACK (DO NOT CHANGE)
+Frontend:
+- React + TypeScript
+- Vite
+- Tailwind CSS
+- shadcn/ui
+- TanStack React Query v5
+- wouter for routing
+- react-hook-form + Zod
+- lucide-react icons
+
+Backend:
+- Node.js + Express (TypeScript)
+- PostgreSQL
+- Drizzle ORM
+- Zod for request validation
+- Resend for transactional email
+
+Shared:
+- End-to-end TypeScript
+- drizzle-zod
+- shared/schema.ts for shared types
+
+Everything currently runs on a single Express server.
+
+OBJECTIVE
+HARDEN the existing architecture for professionalism, reliability, and demo readiness WITHOUT a rewrite.
+
+REQUIRED CHANGES (MANDATORY)
+1. API BOUNDARY HARDENING
+- All backend routes MUST be namespaced under `/api/*`
+- Frontend must NEVER rely on mixed routing logic
+- Express should serve static Vite assets ONLY in production
+- No SPA fallback logic should interfere with API routes
+
+2. AUTHENTICATION HARDENING
+- Replace `express-session` with JWT-based authentication
+- Use signed access tokens (short-lived)
+- Use refresh tokens (httpOnly cookies)
+- Tokens MUST include:
+  - user_id
+  - org_id
+  - role
+- Authorization checks must be explicit and enforced server-side
+- No client-side trust assumptions
+
+3. MULTI-TENANCY GUARANTEES
+- Every database table must include `org_id`
+- Every query must scope by `org_id`
+- Enforce this at the query level (not UI level)
+- Do not introduce cross-org access under any circumstances
+
+4. AUDIT SAFETY
+- Add an append-only `audit_log` table
+- Log:
+  - actor (user_id)
+  - org_id
+  - action
+  - target_type
+  - target_id
+  - timestamp
+- Audit records are immutable once written
+- No deletes, no updates
+
+5. STABILITY RULES
+- No experimental libraries
+- No framework changes
+- No architectural rewrites
+- No new UI unless required to support auth flow
+- No breaking existing functionality
+
+QUALITY BAR
+- Code must be readable, explicit, and production-grade
+- Prefer clarity over clever abstractions
+- Comment critical logic paths (auth, tenancy, audit)
+- Assume this will be reviewed by senior engineers
+
+DELIVERABLE
+A hardened, professional AXIOM codebase with:
+- Clean API boundary
+- Secure auth
+- Enforced multi-tenancy
+- Audit-safe behavior
+- Zero “blinking” or routing artifacts
+
+Do not explain decisions. Implement them.
