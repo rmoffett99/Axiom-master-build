@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express, { type Request, Response, NextFunction } from "express";
 import session from "express-session";
 import pgSession from "connect-pg-simple";
@@ -5,6 +6,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { seedDatabase } from "./seed";
+import { i } from 'node_modules/vite/dist/node/chunks/moduleRunnerTransport';
 
 const app = express();
 const httpServer = createServer(app);
@@ -163,26 +165,12 @@ process.on("unhandledRejection", (reason) => {
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
 
-      httpServer.keepAliveTimeout = 65000;
-      httpServer.headersTimeout = 66000;
-      httpServer.requestTimeout = 300000;
-      httpServer.timeout = 0;
+ const port = Number(process.env.PORT || 5000);
 
-      seedDatabase().catch((error) => {
-        console.error("Error seeding database:", error);
-      });
-    },
-  );
+httpServer.listen(port, () => {
+  log(`serving on port ${port}`);
+});
 
   const shutdown = (signal: string) => {
     if (isShuttingDown) return;
