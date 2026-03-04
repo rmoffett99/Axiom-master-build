@@ -1,15 +1,12 @@
-import VeralogixSnapshot from "./components/VeralogixSnapshot";
+import SnapshotPage from "@/veralogix/pages/SnapshotPage";
 
-... // other imports
+// ... other imports 
 
-function OrgRoutes() {
-    return (
-        <Switch>
-            ... // other routes
-            <Route path="/org/:orgSlug/veralogix" component={VeralogixSnapshot} />
-            ... // other routes
-        </Switch>
+function App() {
+    return ( 
+        <Router>
+            <Route path="/snapshot" component={SnapshotPage} />
+            {/* Other routes */}
+        </Router>
     );
 }
-
-// rest of the component code remains the same
