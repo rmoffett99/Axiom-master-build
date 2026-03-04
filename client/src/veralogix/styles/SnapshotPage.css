@@ -1,0 +1,54 @@
+.snapshot-container {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.snapshot-header {
+    font-size: 2em;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+.snapshot-section {
+    margin-bottom: 30px;
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.snapshot-timeline {
+    display: flex;
+    justify-content: space-between;
+    margin: 20px 0;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 15px;
+}
+
+.severity-low {
+    color: green;
+}
+
+.severity-medium {
+    color: orange;
+}
+
+.severity-high {
+    color: red;
+}
+
+@media (max-width: 768px) {
+    .snapshot-container {
+        padding: 10px;
+    }
+
+    .snapshot-header {
+        font-size: 1.5em;
+    }
+}
