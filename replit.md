@@ -45,6 +45,15 @@ Application is frozen for demos — only bug fixes allowed, no new features or c
 -   **Data Model**: Includes Users, Teams, Decisions, DecisionVersions, Assumptions, Alerts, AuditLogs, and a comprehensive set of "Company Brain" tables for institutional memory, rules, and actions.
 -   **Hardening Rules**: Strict rules for deterministic scores, conservative language, and hiding unreliable features to build reviewer trust.
 
+## Git / GitHub Integration
+
+This Replit project is connected to GitHub at **https://github.com/rmoffett99/Axiom-master-build**.
+
+-   Changes made in Replit can be pushed to GitHub using the **Git** panel in the Replit sidebar (or standard `git push` in the Replit Shell).
+-   Changes merged on GitHub can be pulled into Replit via the **Git** panel or `git pull`.
+-   The `.replit` file is committed to the repository so that the run/build/deployment configuration is version-controlled alongside the source code.
+-   Replit-internal runtime directories (`.config/`, `.local/`) and secrets (`.env`) are listed in `.gitignore` and are **not** pushed to GitHub.
+
 ## External Dependencies
 -   **PostgreSQL**: Primary database for all application data.
 -   **Vite**: Frontend build tool.
